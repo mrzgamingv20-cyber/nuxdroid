@@ -9,6 +9,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      full:
+        description: Build custom bootstrap and installable APK
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -69,6 +74,7 @@ jobs:
 
   bootstrap:
     name: Build custom bootstrap (com.nuxdroid)
+    if: github.event_name == 'workflow_dispatch' && inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
@@ -114,6 +120,7 @@ jobs:
   apk:
     name: Build installable APK
     needs: bootstrap
+    if: github.event_name == 'workflow_dispatch' && inputs.full
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
