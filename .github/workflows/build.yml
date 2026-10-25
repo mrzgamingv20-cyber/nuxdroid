@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout NuxDroid
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -64,7 +64,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout Termux packages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: termux/termux-packages
           ref: ${{ env.TERMUX_PACKAGES_COMMIT }}
@@ -107,7 +107,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout NuxDroid
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download custom bootstrap
         uses: actions/download-artifact@v4
