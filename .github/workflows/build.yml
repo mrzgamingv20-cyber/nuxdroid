@@ -13,9 +13,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: nuxdroid-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   TERMUX_PACKAGES_COMMIT: 824221abf741a02ac50dc8ce161b52604b3e1a58
   TERMUX_APP__PACKAGE_NAME: com.nuxdroid
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
   # Fast feedback: compile the APK with the upstream bootstrap. This APK is
@@ -35,12 +41,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
         run: |
-          sdkmanager --install \
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
             "ndk;29.0.14206865"
@@ -62,6 +71,8 @@ jobs:
     name: Build custom bootstrap (com.nuxdroid)
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    env:
+      TERMUX_DOCKER_USE_SUDO: "1"
     steps:
       - name: Checkout Termux packages
         uses: actions/checkout@v4
@@ -127,12 +138,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
         run: |
-          sdkmanager --install \
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
             "ndk;29.0.14206865"
