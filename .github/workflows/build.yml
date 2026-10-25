@@ -51,7 +51,7 @@ jobs:
           ./gradlew assembleDebug --stacktrace
 
       - name: Upload smoke APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuxdroid-compile-smoke-do-not-install
           path: app/build/outputs/apk/debug/*.apk
@@ -93,7 +93,7 @@ jobs:
           unzip -l bootstrap-aarch64.zip | head -20
 
       - name: Upload bootstrap
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuxdroid-bootstrap-aarch64
           path: termux-packages/bootstrap-aarch64.zip
@@ -153,7 +153,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuxdroid-debug-apk
           path: dist/*
