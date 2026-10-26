@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nuxdroid-build-${{ github.ref }}
+  group: nuxdroid-build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:
@@ -114,14 +114,22 @@ jobs:
 
           # command-not-found pulls in nodejs/python/tk, which is far too heavy
           # for a minimal bootstrap and is not needed for the Phase 0 terminal.
-          sed -i '/PACKAGES+=("command-not-found")/d' scripts/build-bootstraps.sh
-
-          # Keep the build within the disk space of a hosted runner. Package
-          # source/build trees are no longer needed after their .deb is built.
+          # Remove its whole conditional block; removing only the package line
+          # would leave an empty "then" branch and a shell syntax error.
           python3 - <<'PY'
           from pathlib import Path
           path = Path('scripts/build-bootstraps.sh')
           text = path.read_text()
+          not_found_block = (
+              '\t\tif ! ${BOOTSTRAP_ANDROID10_COMPATIBLE}; then\n'
+              '\t\t\tPACKAGES+=("command-not-found")\n'
+              '\t\telse\n'
+              '\t\t\tPACKAGES+=("proot")\n'
+              '\t\tfi\n'
+          )
+          if not_found_block not in text:
+              raise SystemExit('command-not-found/proot block not found')
+          text = text.replace(not_found_block, '')
           old = (
               '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
               '\t\t\tset +e\n'
@@ -141,7 +149,11 @@ jobs:
               raise SystemExit('build-bootstraps.sh loop pattern not found')
           path.write_text(text.replace(old, new))
           PY
-          grep -n 'command-not-found\|rm -rf "$HOME/.termux-build"' scripts/build-bootstraps.sh || true
+          if grep -n 'command-not-found' scripts/build-bootstraps.sh; then
+            echo 'command-not-found block was not fully removed' >&2
+            exit 1
+          fi
+          grep -n 'rm -rf "$HOME/.termux-build"' scripts/build-bootstraps.sh
 
       - name: Build bootstrap
         working-directory: termux-packages
