@@ -130,6 +130,10 @@ jobs:
           if not_found_block not in text:
               raise SystemExit('command-not-found/proot block not found')
           text = text.replace(not_found_block, '')
+          bzip2_entry = '\t\tPACKAGES+=("bzip2")\n'
+          if bzip2_entry not in text:
+              raise SystemExit('bzip2 package entry not found')
+          text = text.replace(bzip2_entry, '\t\tPACKAGES+=("libbz2")\n')
           old = (
               '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
               '\t\t\tset +e\n'
@@ -148,12 +152,40 @@ jobs:
           if old not in text:
               raise SystemExit('build-bootstraps.sh loop pattern not found')
           path.write_text(text.replace(old, new))
+
+          # The apt package writes the official Termux repository into the
+          # custom prefix by default. Those binaries target com.termux and
+          # must never be installed into the NuxDroid prefix.
+          apt_path = Path('packages/apt/build.sh')
+          apt_text = apt_path.read_text()
+          apt_sources_old = (
+              '\t{\n'
+              '\t\techo "# The main termux repository, with cloudflare cache"\n'
+              '\t\techo "deb https://packages-cf.termux.dev/apt/termux-main/ stable main"\n'
+              '\t\techo "# The main termux repository, without cloudflare cache"\n'
+              '\t\techo "# deb https://packages.termux.dev/apt/termux-main/ stable main"\n'
+              '\t} > $TERMUX_PREFIX/etc/apt/sources.list'
+          )
+          apt_sources_new = (
+              '\t{\n'
+              '\t\techo "# NuxDroid: custom package repository is not configured yet."\n'
+              '\t\techo "# Do not use the official Termux repository with this prefix."\n'
+              '\t} > $TERMUX_PREFIX/etc/apt/sources.list'
+          )
+          if apt_sources_old not in apt_text:
+              raise SystemExit('apt sources.list block not found')
+          apt_path.write_text(apt_text.replace(apt_sources_old, apt_sources_new))
           PY
           if grep -n 'command-not-found' scripts/build-bootstraps.sh; then
             echo 'command-not-found block was not fully removed' >&2
             exit 1
           fi
+          grep -n 'PACKAGES+=("libbz2")' scripts/build-bootstraps.sh
           grep -n 'rm -rf "$HOME/.termux-build"' scripts/build-bootstraps.sh
+          if grep -n 'packages-cf.termux.dev' packages/apt/build.sh; then
+            echo 'official Termux apt repository is still configured' >&2
+            exit 1
+          fi
 
       - name: Build bootstrap
         working-directory: termux-packages
