@@ -103,12 +103,6 @@ jobs:
           path: termux-packages
           fetch-depth: 1
 
-      - name: Fix workspace permissions for Docker container
-        working-directory: termux-packages
-        run: |
-          # Ensure the builder user inside the container can write to the mounted workspace
-          docker exec --user root termux-package-builder chown -R builder:builder /home/builder/termux-packages 2>/dev/null || true
-
       - name: Configure custom prefix
         working-directory: termux-packages
         run: |
@@ -196,6 +190,8 @@ jobs:
       - name: Build bootstrap
         working-directory: termux-packages
         run: |
+          # Fix workspace permissions inside the container (container is created on first run)
+          docker exec --user root termux-package-builder chown -R builder:builder /home/builder/termux-packages 2>/dev/null || true
           ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
 
       - name: Verify bootstrap
