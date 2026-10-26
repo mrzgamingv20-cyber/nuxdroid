@@ -80,6 +80,21 @@ jobs:
     env:
       TERMUX_DOCKER_USE_SUDO: "1"
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /opt/hostedtoolcache \
+            /usr/local/share/boost \
+            /usr/local/lib/node_modules \
+            /usr/share/swift \
+            /usr/lib/mono
+          sudo apt-get clean
+          docker system prune -af || true
+          df -h
+
       - name: Checkout Termux packages
         uses: actions/checkout@v4
         with:
@@ -96,6 +111,37 @@ jobs:
             scripts/properties.sh
           grep -n '^TERMUX_APP__PACKAGE_NAME=' scripts/properties.sh
           grep -n '^TERMUX_APP__DATA_DIR=' scripts/properties.sh
+
+          # command-not-found pulls in nodejs/python/tk, which is far too heavy
+          # for a minimal bootstrap and is not needed for the Phase 0 terminal.
+          sed -i '/PACKAGES+=("command-not-found")/d' scripts/build-bootstraps.sh
+
+          # Keep the build within the disk space of a hosted runner. Package
+          # source/build trees are no longer needed after their .deb is built.
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/build-bootstraps.sh')
+          text = path.read_text()
+          old = (
+              '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
+              '\t\t\tset +e\n'
+              '\t\t\tbuild_package "$TERMUX_ARCH" "$package_name" || return $?\n'
+              '\t\t\tset -e\n'
+              '\t\tdone'
+          )
+          new = (
+              '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
+              '\t\t\tset +e\n'
+              '\t\t\tbuild_package "$TERMUX_ARCH" "$package_name" || return $?\n'
+              '\t\t\tset -e\n'
+              '\t\t\trm -rf "$HOME/.termux-build"/*/build "$HOME/.termux-build"/*/src "$HOME/.termux-build"/*/massage "$HOME/.termux-build"/*/tmp 2>/dev/null || true\n'
+              '\t\tdone'
+          )
+          if old not in text:
+              raise SystemExit('build-bootstraps.sh loop pattern not found')
+          path.write_text(text.replace(old, new))
+          PY
+          grep -n 'command-not-found\|rm -rf "$HOME/.termux-build"' scripts/build-bootstraps.sh || true
 
       - name: Build bootstrap
         working-directory: termux-packages
