@@ -210,17 +210,28 @@ jobs:
         working-directory: termux-packages
         run: |
           # run-docker.sh only creates the container on its first invocation.
-          # Create it now, before chown, so the permission fix actually runs.
           ./scripts/run-docker.sh true
-          sudo docker exec --user root termux-package-builder \
-            chown -R builder:builder /home/builder/termux-packages
           sudo docker exec termux-package-builder sh -c '
             set -e
             echo "container user: $(id)"
-            ls -ld /home/builder/termux-packages
-            touch /home/builder/termux-packages/.nuxdroid-write-test
-            rm -f /home/builder/termux-packages/.nuxdroid-write-test
-            echo "workspace write test: OK"
+            ls -ldn /home/builder/termux-packages
+            touch /home/builder/.nuxdroid-write-test
+            rm -f /home/builder/.nuxdroid-write-test
+            echo "container home write test: OK"
+            if touch /home/builder/termux-packages/.nuxdroid-write-test; then
+              rm -f /home/builder/termux-packages/.nuxdroid-write-test
+              echo "workspace root write test: OK"
+            else
+              echo "workspace root write test: FAILED (container recovery fallback will be used)"
+            fi
+            mkdir -p /home/builder/termux-packages/output
+            if touch /home/builder/termux-packages/output/.nuxdroid-write-test; then
+              rm -f /home/builder/termux-packages/output/.nuxdroid-write-test
+              echo "output write test: OK"
+            else
+              echo "output write test: FAILED" >&2
+              exit 1
+            fi
           '
           df -h
           sudo docker exec termux-package-builder df -h /home/builder
@@ -228,11 +239,18 @@ jobs:
       - name: Build bootstrap
         working-directory: termux-packages
         run: |
+          set +e
           ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+          build_rc=$?
+          set -e
           if [ ! -s bootstrap-aarch64.zip ]; then
             echo "Bootstrap zip missing on host; recovering from container..."
             sudo docker cp termux-package-builder:/home/builder/bootstrap-aarch64.zip ./bootstrap-aarch64.zip
             sudo chown "$(id -u):$(id -g)" ./bootstrap-aarch64.zip
+          fi
+          if [ "$build_rc" -ne 0 ]; then
+            echo "Bootstrap build exited with code $build_rc" >&2
+            exit "$build_rc"
           fi
           df -h
 
