@@ -1,0 +1,87 @@
+name: Build APK from existing bootstrap
+
+# Rebuild only the Android APK when the custom bootstrap has already been
+# produced by a previous "Build NuxDroid" run. This avoids repeating the
+# expensive bootstrap compile while iterating on app-side changes.
+on:
+  workflow_dispatch:
+    inputs:
+      bootstrap_run_id:
+        description: Run ID that contains the nuxdroid-bootstrap-aarch64 artifact
+        required: true
+        type: string
+      version_name:
+        description: APK version name
+        required: false
+        default: "0.1.0"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  apk:
+    name: Build installable APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout NuxDroid
+        uses: actions/checkout@v4
+
+      - name: Download custom bootstrap
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nuxdroid-bootstrap
+          gh run download "${{ inputs.bootstrap_run_id }}" \
+            --repo "${{ github.repository }}" \
+            --name nuxdroid-bootstrap-aarch64 \
+            --dir /tmp/nuxdroid-bootstrap
+          test -s /tmp/nuxdroid-bootstrap/bootstrap-aarch64.zip
+          cp /tmp/nuxdroid-bootstrap/bootstrap-aarch64.zip app/src/main/cpp/bootstrap-aarch64.zip
+          sha256sum app/src/main/cpp/bootstrap-aarch64.zip
+          echo "TERMUX_BOOTSTRAP_SHA256=$(sha256sum app/src/main/cpp/bootstrap-aarch64.zip | awk '{print $1}')" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK packages
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "ndk;29.0.14206865"
+
+      - name: Build APK
+        env:
+          TERMUX_APP_VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/*arm64-v8a*.apk dist/nuxdroid-debug-arm64-v8a.apk
+          cd dist
+          sha256sum nuxdroid-debug-arm64-v8a.apk > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxdroid-debug-apk
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

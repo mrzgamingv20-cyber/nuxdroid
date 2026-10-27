@@ -151,7 +151,24 @@ jobs:
           )
           if old not in text:
               raise SystemExit('build-bootstraps.sh loop pattern not found')
-          path.write_text(text.replace(old, new))
+          text = text.replace(old, new)
+
+          # Keep a copy of the bootstrap archive inside the container home.
+          # The workspace is a bind mount owned by the runner user, while the
+          # container may run as a different uid; if the final mv fails, the
+          # archive would otherwise be deleted by the EXIT trap.
+          archive_old = (
+              ')\n'
+              '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
+          )
+          archive_new = (
+              ')\n'
+              '\tcp -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "/home/builder/bootstrap-${1}.zip" || true\n'
+              '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
+          )
+          if archive_old not in text:
+              raise SystemExit('create_bootstrap_archive mv block not found')
+          path.write_text(text.replace(archive_old, archive_new))
 
           # The apt package writes the official Termux repository into the
           # custom prefix by default. Those binaries target com.termux and
@@ -187,12 +204,35 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare builder container
+        working-directory: termux-packages
+        run: |
+          # run-docker.sh only creates the container on its first invocation.
+          # Create it now, before chown, so the permission fix actually runs.
+          ./scripts/run-docker.sh true
+          sudo docker exec --user root termux-package-builder \
+            chown -R builder:builder /home/builder/termux-packages
+          sudo docker exec termux-package-builder sh -c '
+            set -e
+            echo "container user: $(id)"
+            ls -ld /home/builder/termux-packages
+            touch /home/builder/termux-packages/.nuxdroid-write-test
+            rm -f /home/builder/termux-packages/.nuxdroid-write-test
+            echo "workspace write test: OK"
+          '
+          df -h
+          sudo docker exec termux-package-builder df -h /home/builder
+
       - name: Build bootstrap
         working-directory: termux-packages
         run: |
-          # Fix workspace permissions inside the container (container is created on first run)
-          docker exec --user root termux-package-builder chown -R builder:builder /home/builder/termux-packages 2>/dev/null || true
           ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+          if [ ! -s bootstrap-aarch64.zip ]; then
+            echo "Bootstrap zip missing on host; recovering from container..."
+            sudo docker cp termux-package-builder:/home/builder/bootstrap-aarch64.zip ./bootstrap-aarch64.zip
+            sudo chown "$(id -u):$(id -g)" ./bootstrap-aarch64.zip
+          fi
+          df -h
 
       - name: Verify bootstrap
         working-directory: termux-packages
