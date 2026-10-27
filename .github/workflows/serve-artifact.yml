@@ -1,0 +1,93 @@
+name: Serve artifact via temporary tunnel
+
+# Temporary workaround for slow GitHub artifact downloads on mobile networks.
+# The runner downloads the artifact over GitHub's internal network, serves it
+# over a random trycloudflare.com URL, and keeps the tunnel open for a limited
+# time. The URL is unlisted and the job is cancelled/expires automatically.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Actions run ID that contains the artifact
+        required: true
+        type: string
+      artifact_name:
+        description: Artifact name
+        required: true
+        default: nuxdroid-debug-apk
+        type: string
+      file_name:
+        description: File inside the artifact to serve
+        required: true
+        default: nuxdroid-debug-arm64-v8a.apk
+        type: string
+      hold_minutes:
+        description: Minutes to keep the tunnel open
+        required: true
+        default: "30"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  serve:
+    name: Serve artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Download artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p serve
+          gh run download "${{ inputs.run_id }}" \
+            --repo "${{ github.repository }}" \
+            --name "${{ inputs.artifact_name }}" \
+            --dir serve
+          find serve -type f -ls
+          test -s "serve/${{ inputs.file_name }}"
+
+      - name: Install cloudflared
+        run: |
+          set -euo pipefail
+          curl -fsSL -o cloudflared \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+
+      - name: Start HTTP server and tunnel
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/http.log 2>&1 &
+          echo $! > /tmp/http.pid
+          ./cloudflared tunnel --url http://127.0.0.1:8000 \
+            --no-autoupdate --protocol http2 > /tmp/cloudflared.log 2>&1 &
+          echo $! > /tmp/cloudflared.pid
+          URL=""
+          for _ in $(seq 1 60); do
+            URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /tmp/cloudflared.log | head -n1 || true)
+            if [ -n "$URL" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "$URL" ]; then
+            echo "cloudflared URL not found" >&2
+            cat /tmp/cloudflared.log
+            exit 1
+          fi
+          DOWNLOAD_URL="$URL/${{ inputs.file_name }}"
+          echo "TUNNEL_URL=$DOWNLOAD_URL" | tee -a "$GITHUB_ENV"
+          {
+            echo "### Temporary download URL"
+            echo ""
+            echo "$DOWNLOAD_URL"
+            echo ""
+            echo "### SHA-256"
+            echo ""
+            sha256sum "serve/${{ inputs.file_name }}"
+            echo ""
+            echo "The tunnel closes after ${{ inputs.hold_minutes }} minutes or when the job is cancelled."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Serving $DOWNLOAD_URL"
+          sleep "$(( ${{ inputs.hold_minutes }} * 60 ))"
