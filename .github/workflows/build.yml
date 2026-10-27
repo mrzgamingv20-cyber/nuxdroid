@@ -159,10 +159,12 @@ jobs:
           # archive would otherwise be deleted by the EXIT trap.
           archive_old = (
               ')\n'
+              '\n'
               '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
           )
           archive_new = (
               ')\n'
+              '\n'
               '\tcp -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "/home/builder/bootstrap-${1}.zip" || true\n'
               '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
           )
