@@ -134,6 +134,28 @@ jobs:
           if bzip2_entry not in text:
               raise SystemExit('bzip2 package entry not found')
           text = text.replace(bzip2_entry, '\t\tPACKAGES+=("libbz2")\n')
+
+          # build-bootstraps.sh uses TERMUX_BUILT_PACKAGES_DIRECTORY_FOR_ARCH
+          # for the -f cleanup, but that variable does not exist in the
+          # pinned tree. Without this fix, -f expands to /* and tries to
+          # delete the container root. The built-package markers are stored
+          # flat in TERMUX_BUILT_PACKAGES_DIRECTORY, so clear those instead.
+          force_old = (
+              '\t\tif [[ $FORCE_BUILD_PACKAGES == "1" ]]; then\n'
+              '\t\t\trm -f "$TERMUX_BUILT_PACKAGES_DIRECTORY_FOR_ARCH"/*\n'
+              '\t\t\trm -f "$TERMUX_BUILT_DEBS_DIRECTORY"/*\n'
+              '\t\tfi'
+          )
+          force_new = (
+              '\t\tif [[ $FORCE_BUILD_PACKAGES == "1" ]]; then\n'
+              '\t\t\trm -f "${TERMUX_BUILT_PACKAGES_DIRECTORY:?}"/*\n'
+              '\t\t\trm -f "$TERMUX_BUILT_DEBS_DIRECTORY"/*\n'
+              '\t\tfi'
+          )
+          if force_old not in text:
+              raise SystemExit('build-bootstraps.sh force cleanup block not found')
+          text = text.replace(force_old, force_new)
+
           old = (
               '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
               '\t\t\tset +e\n'
