@@ -50,6 +50,53 @@ The workflow uses:
 
 Artifacts are available from the GitHub Actions run.
 
+### Prefix consistency
+
+Changing `TERMUX_APP__PACKAGE_NAME` is not enough on its own: the bootstrap
+builder can reuse cached `termux-tools` packages that were compiled for the
+default `com.termux` prefix. The build therefore passes `-f` to
+`build-bootstraps.sh` and explicitly rebuilds `termux-am` and
+`termux-am-socket`. A verification step rejects any bootstrap script that
+still references `/data/data/com.termux`.
+
+The first APK built before this fix may have an already-extracted prefix with
+the stale `termux-tools` scripts. Reinstalling the APK without clearing app
+data will not replace them. Run `scripts/repair-prefix.sh` inside the NuxDroid
+terminal to repair the existing prefix:
+
+```sh
+bash /sdcard/Download/NuxDroid/repair-prefix.sh
+```
+
+## Branding and APK size
+
+The launcher icon, adaptive icon, TV banner, and notification icon are
+NuxDroid-specific. The upstream Termux artwork is not used. The Gradle
+application ID and the Android resource names still use the `com.termux` /
+`ic_launcher` identifiers for compatibility with the Termux app fork, but the
+user-facing branding is NuxDroid.
+
+The first NuxDroid APK embedded the complete Termux bootstrap. That bootstrap
+also contained build-only packages (Perl, Python, Doxygen, DocBook, X11
+headers, Tor, and others) which were extracted on first launch. The build now
+runs `.github/scripts/prune-bootstrap.py` after the bootstrap is built. It
+keeps the runtime dependency closure of the requested packages, removes
+build-only packages, filters the dpkg database and symlinks, and verifies the
+ELF `NEEDED` libraries.
+
+Current result from the 2026-10-27 bootstrap:
+
+| Metric | Before pruning | After pruning |
+|---|---|---|
+| Bootstrap zip | 122.3 MiB | 31.8 MiB |
+| Zip entries | 18,495 | 4,526 |
+| Packages in dpkg status | 158 | 87 |
+| APK (expected) | ~132 MB | ~36 MB |
+
+The first launch still extracts the bootstrap once. With the smaller archive
+and fewer entries, that one-time extraction is substantially faster; later
+launches skip it because the prefix already exists.
+
 ## Roadmap
 
 1. Phase 0a: custom prefix, bootstrap, terminal APK, coexist with Termux.

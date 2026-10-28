@@ -194,6 +194,43 @@ jobs:
           if apt_sources_old not in apt_text:
               raise SystemExit('apt sources.list block not found')
           apt_path.write_text(apt_text.replace(apt_sources_old, apt_sources_new))
+
+          # termux-tools assumes the Android applicationId and the Java
+          # namespace are identical. NuxDroid keeps the Java classes under
+          # com.termux but uses applicationId com.nuxdroid, so component
+          # class names must stay com.termux.app.* while package names and
+          # actions use com.nuxdroid. Patch the installed scripts before the
+          # .deb is created.
+          termux_tools_path = Path('packages/termux-tools/build.sh')
+          termux_tools_text = termux_tools_path.read_text()
+          post_install_old = (
+              'termux_step_post_make_install() {\n'
+              '\tTERMUX_PKG_CONFFILES="$(cat "$TERMUX_PKG_BUILDDIR/conffiles")"\n'
+              '}\n'
+          )
+          post_install_new = (
+              'termux_step_post_make_install() {\n'
+              '\tTERMUX_PKG_CONFFILES="$(cat "$TERMUX_PKG_BUILDDIR/conffiles")"\n'
+              '\n'
+              '\t# Keep app component class names in the Termux Java namespace.\n'
+              '\tlocal app_pkg="$TERMUX_APP_PACKAGE"\n'
+              '\tlocal app_pkg_escaped="${app_pkg//./\\\\.}"\n'
+              '\tlocal app_ns="${TERMUX_APP__NAMESPACE:-com.termux}"\n'
+              '\tlocal script_path\n'
+              '\tfor script_path in "$TERMUX_PREFIX"/bin/*; do\n'
+              '\t\t[ -f "$script_path" ] || continue\n'
+              '\t\tgrep -Iq . "$script_path" 2>/dev/null || continue\n'
+              '\t\tif grep -q "${app_pkg}/${app_pkg}\\\\.app\\\\." "$script_path"; then\n'
+              '\t\t\tsed -i "s#${app_pkg_escaped}/${app_pkg_escaped}\\\\.app\\\\.#${app_pkg}/${app_ns}.app.#g" "$script_path"\n'
+              '\t\tfi\n'
+              '\tdone\n'
+              '}\n'
+          )
+          if post_install_old not in termux_tools_text:
+              raise SystemExit('termux-tools post_make_install block not found')
+          termux_tools_path.write_text(
+              termux_tools_text.replace(post_install_old, post_install_new)
+          )
           PY
           if grep -n 'command-not-found' scripts/build-bootstraps.sh; then
             echo 'command-not-found block was not fully removed' >&2
@@ -240,7 +277,15 @@ jobs:
         working-directory: termux-packages
         run: |
           set +e
-          ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+          # -f is required after changing TERMUX_APP__PACKAGE_NAME. Without it
+          # termux-tools can be reused from the builder cache with the default
+          # com.termux prefix even though the binaries themselves are built
+          # for com.nuxdroid. That makes `pkg` source a non-existent helper.
+          # termux-am/termux-am-socket are also rebuilt so their socket paths
+          # and app-package references use com.nuxdroid.
+          ./scripts/run-docker.sh ./scripts/build-bootstraps.sh \
+            -f --architectures aarch64 \
+            --add termux-am,termux-am-socket
           build_rc=$?
           set -e
           if [ ! -s bootstrap-aarch64.zip ]; then
@@ -254,12 +299,110 @@ jobs:
           fi
           df -h
 
+      - name: Prune build-only bootstrap packages
+        working-directory: termux-packages
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/.github/scripts/prune-bootstrap.py" \
+            bootstrap-aarch64.zip bootstrap-aarch64.pruned.zip
+          mv bootstrap-aarch64.pruned.zip bootstrap-aarch64.zip
+          df -h
+
+      - name: Verify bootstrap prefix isolation
+        working-directory: termux-packages
+        run: |
+          set -euo pipefail
+          rm -rf bootstrap-prefix-check
+          mkdir -p bootstrap-prefix-check
+          unzip -q bootstrap-aarch64.zip -d bootstrap-prefix-check
+
+          # No file installed into the NuxDroid prefix may reference the
+          # official Termux prefix. This catches stale packages reused from
+          # the builder cache, especially termux-tools scripts such as `pkg`.
+          leaks="$(grep -rIl --binary-files=without-match \
+            '/data/data/com.termux' \
+            bootstrap-prefix-check/bin \
+            bootstrap-prefix-check/etc \
+            bootstrap-prefix-check/libexec \
+            bootstrap-prefix-check/var/lib/dpkg/info 2>/dev/null || true)"
+          if [ -n "$leaks" ]; then
+            echo "::error::Bootstrap files still reference the com.termux prefix:"
+            echo "$leaks"
+            exit 1
+          fi
+
+          # These files are generated from termux-tools and must use the
+          # custom app package, not just the custom filesystem prefix.
+          for entry in \
+            bin/pkg \
+            bin/termux-info \
+            bin/termux-setup-storage \
+            bin/termux-reset; do
+            if ! grep -q 'com\.nuxdroid' "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not contain the com.nuxdroid package name"
+              exit 1
+            fi
+          done
+
+          for entry in \
+            bin/termux-open \
+            bin/termux-reset \
+            bin/termux-wake-lock \
+            bin/termux-wake-unlock; do
+            if ! grep -q 'com\.nuxdroid/com\.termux\.app\.' \
+              "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not keep component classes in com.termux"
+              exit 1
+            fi
+          done
+
+          for entry in bin/termux-reload-settings bin/termux-setup-storage; do
+            if ! grep -q 'com\.nuxdroid\.app\.reload_style' \
+              "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not use the NuxDroid reload action"
+              exit 1
+            fi
+          done
+
+          if grep -rIq --binary-files=without-match \
+            'com\.termux/com\.termux\.app\.|com\.termux\.app\.reload_style' \
+            bootstrap-prefix-check/bin bootstrap-prefix-check/etc; then
+            echo "::error::Bootstrap still contains old app component/action names"
+            exit 1
+          fi
+
+          echo "Bootstrap prefix isolation verification passed."
+          rm -rf bootstrap-prefix-check
+
       - name: Verify bootstrap
         working-directory: termux-packages
         run: |
+          set -euo pipefail
           test -s bootstrap-aarch64.zip
           sha256sum bootstrap-aarch64.zip
-          unzip -l bootstrap-aarch64.zip | head -20
+          unzip -t bootstrap-aarch64.zip > /tmp/bootstrap-test.log
+          unzip -p bootstrap-aarch64.zip var/lib/dpkg/status > /tmp/bootstrap-status.txt
+          package_count="$(grep -c '^Package:' /tmp/bootstrap-status.txt)"
+          echo "Bootstrap package count: $package_count"
+          test "$package_count" -ge 60
+          test "$package_count" -le 120
+          for package in apt bash dpkg termux-tools termux-exec termux-keyring termux-licenses curl openssl; do
+            count="$(grep -c "^Package: ${package}$" /tmp/bootstrap-status.txt || true)"
+            if [ "$count" -ne 1 ]; then
+              echo "missing or duplicate package: $package" >&2
+              exit 1
+            fi
+          done
+          for package in perl python doxygen docbook-xsl tor unbound libx11; do
+            if grep -q "^Package: ${package}$" /tmp/bootstrap-status.txt; then
+              echo "build-only package was not pruned: $package" >&2
+              exit 1
+            fi
+          done
+          unzip -l bootstrap-aarch64.zip > /tmp/bootstrap-entries.txt
+          grep -q 'SYMLINKS.txt' /tmp/bootstrap-entries.txt
+          echo "Bootstrap verification passed."
+          head -20 /tmp/bootstrap-entries.txt
 
       - name: Upload bootstrap
         uses: actions/upload-artifact@v4

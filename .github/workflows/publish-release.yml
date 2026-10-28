@@ -1,0 +1,100 @@
+name: Publish release assets
+
+# Publish an already-built APK and bootstrap as GitHub release assets. This
+# does not rebuild anything; it only copies the artifacts from the selected
+# Actions run to a release, where they can be downloaded with resume support.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Actions run ID containing the APK and bootstrap artifacts
+        required: true
+        type: string
+      tag:
+        description: Release tag
+        required: true
+        default: v0.1.0-alpha1
+        type: string
+      prerelease:
+        description: Mark the release as a prerelease
+        required: true
+        default: true
+        type: boolean
+      draft:
+        description: Create the release as a draft
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/apk dist/bootstrap
+          gh run download "${{ inputs.run_id }}" \
+            --repo "${{ github.repository }}" \
+            --name nuxdroid-debug-apk \
+            --dir dist/apk
+          gh run download "${{ inputs.run_id }}" \
+            --repo "${{ github.repository }}" \
+            --name nuxdroid-bootstrap-aarch64 \
+            --dir dist/bootstrap
+          find dist -type f -ls
+          test -s dist/apk/nuxdroid-debug-arm64-v8a.apk
+          test -s dist/bootstrap/bootstrap-aarch64.zip
+
+      - name: Prepare release files
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp dist/apk/nuxdroid-debug-arm64-v8a.apk release/
+          cp dist/bootstrap/bootstrap-aarch64.zip release/
+          cd release
+          sha256sum nuxdroid-debug-arm64-v8a.apk bootstrap-aarch64.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          NOTES="$(mktemp)"
+          cat > "$NOTES" <<EOF
+          Debug build produced by GitHub Actions run [$RUN_ID](https://github.com/${{ github.repository }}/actions/runs/$RUN_ID).
+
+          - APK: \`nuxdroid-debug-arm64-v8a.apk\` (debug-signed, ARM64 only)
+          - Bootstrap: \`bootstrap-aarch64.zip\` (custom prefix)
+          - Checksums: \`SHA256SUMS\`
+
+          This is an early Phase 0 build. It provides the custom-prefix terminal
+          and bootstrap only; XFCE and Xlorie are not included yet.
+
+          Install the APK manually on an ARM64 Android device. The application
+          ID is \`com.nuxdroid\`, so it can coexist with the official Termux app.
+          EOF
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; uploading assets with --clobber"
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "NuxDroid $TAG" \
+              --notes-file "$NOTES" \
+              ${{ inputs.prerelease && '--prerelease' || '' }} \
+              ${{ inputs.draft && '--draft' || '' }}
+          fi
+          gh release upload "$TAG" release/* --repo "${{ github.repository }}" --clobber
+          gh release view "$TAG" --repo "${{ github.repository }}" --json url,assets \
+            --jq '{url,assets:[.assets[]|{name,size,state}]}'
