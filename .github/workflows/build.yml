@@ -115,6 +115,26 @@ jobs:
           grep -n '^TERMUX_APP__PACKAGE_NAME=' scripts/properties.sh
           grep -n '^TERMUX_APP__DATA_DIR=' scripts/properties.sh
 
+          # The package-builder image exports the default com.termux paths in
+          # its environment. The build scripts override them as shell
+          # variables, but child configure scripts inherit the old exported
+          # values unless the custom values are exported too. This caused
+          # termux-tools to install scripts and preinst metadata with the
+          # official com.termux prefix even though the files landed under the
+          # custom com.nuxdroid prefix.
+          cat >> scripts/properties.sh <<'EOF'
+
+# Export custom Termux paths for child build systems (configure, make, etc.).
+export TERMUX_APP__PACKAGE_NAME TERMUX_APP_PACKAGE TERMUX_APP__DATA_DIR
+export TERMUX__ROOTFS TERMUX_BASE_DIR
+export TERMUX__HOME TERMUX_ANDROID_HOME
+export TERMUX__PREFIX TERMUX_PREFIX
+export TERMUX__PREFIX_CLASSICAL TERMUX_PREFIX_CLASSICAL
+export TERMUX__CACHE_DIR TERMUX_CACHE_DIR
+export TERMUX_APPS_DIR
+export TERMUX_PACKAGE_FORMAT
+EOF
+
           # command-not-found pulls in nodejs/python/tk, which is far too heavy
           # for a minimal bootstrap and is not needed for the Phase 0 terminal.
           # Remove its whole conditional block; removing only the package line
@@ -297,6 +317,23 @@ jobs:
           '
           df -h
           sudo docker exec termux-package-builder df -h /home/builder
+
+      - name: Verify custom build environment
+        working-directory: termux-packages
+        run: |
+          sudo docker exec termux-package-builder bash -lc '
+            set -e
+            cd /home/builder/termux-packages
+            . scripts/properties.sh >/dev/null
+            test "$TERMUX_APP__PACKAGE_NAME" = "com.nuxdroid"
+            test "$TERMUX_APP_PACKAGE" = "com.nuxdroid"
+            test "$TERMUX_PREFIX" = "/data/data/com.nuxdroid/files/usr"
+            test "$TERMUX_BASE_DIR" = "/data/data/com.nuxdroid/files"
+            test "$TERMUX_CACHE_DIR" = "/data/data/com.nuxdroid/cache"
+            test "$TERMUX_ANDROID_HOME" = "/data/data/com.nuxdroid/files/home"
+            echo "custom build environment: OK"
+            env | grep -E "^TERMUX_(APP|BASE|CACHE|PREFIX|ANDROID)" | sort
+          '
 
       - name: Build bootstrap
         working-directory: termux-packages
