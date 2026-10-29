@@ -124,16 +124,16 @@ jobs:
           # custom com.nuxdroid prefix.
           cat >> scripts/properties.sh <<'EOF'
 
-# Export custom Termux paths for child build systems (configure, make, etc.).
-export TERMUX_APP__PACKAGE_NAME TERMUX_APP_PACKAGE TERMUX_APP__DATA_DIR
-export TERMUX__ROOTFS TERMUX_BASE_DIR
-export TERMUX__HOME TERMUX_ANDROID_HOME
-export TERMUX__PREFIX TERMUX_PREFIX
-export TERMUX__PREFIX_CLASSICAL TERMUX_PREFIX_CLASSICAL
-export TERMUX__CACHE_DIR TERMUX_CACHE_DIR
-export TERMUX_APPS_DIR
-export TERMUX_PACKAGE_FORMAT
-EOF
+          # Export custom Termux paths for child build systems (configure, make, etc.).
+          export TERMUX_APP__PACKAGE_NAME TERMUX_APP_PACKAGE TERMUX_APP__DATA_DIR
+          export TERMUX__ROOTFS TERMUX_BASE_DIR
+          export TERMUX__HOME TERMUX_ANDROID_HOME
+          export TERMUX__PREFIX TERMUX_PREFIX
+          export TERMUX__PREFIX_CLASSICAL TERMUX_PREFIX_CLASSICAL
+          export TERMUX__CACHE_DIR TERMUX_CACHE_DIR
+          export TERMUX_APPS_DIR
+          export TERMUX_PACKAGE_FORMAT
+          EOF
 
           # command-not-found pulls in nodejs/python/tk, which is far too heavy
           # for a minimal bootstrap and is not needed for the Phase 0 terminal.
