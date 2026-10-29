@@ -276,6 +276,25 @@ jobs:
           termux_tools_path.write_text(
               termux_tools_text.replace(post_install_old, post_install_new)
           )
+
+          # termux-exec ships a shell helper whose comment contains the
+          # upstream com.termux prefix. It is only a comment, but the bootstrap
+          # isolation check intentionally rejects every textual reference to
+          # the official prefix. Rewrite the installed helper after make install.
+          termux_exec_path = Path('packages/termux-exec/build.sh')
+          termux_exec_text = termux_exec_path.read_text()
+          if 'termux_step_post_make_install()' in termux_exec_text:
+              raise SystemExit('termux-exec already defines termux_step_post_make_install')
+          termux_exec_post_install = (
+              '\n'
+              'termux_step_post_make_install() {\n'
+              '\tlocal script_path="$TERMUX_PREFIX/bin/termux-exec-ld-preload-lib"\n'
+              '\tif [ -f "$script_path" ]; then\n'
+              '\t\tsed -i "s#/data/data/com.termux#${TERMUX_PREFIX}#g" "$script_path"\n'
+              '\tfi\n'
+              '}\n'
+          )
+          termux_exec_path.write_text(termux_exec_text + termux_exec_post_install)
           PY
           if grep -n 'command-not-found' scripts/build-bootstraps.sh; then
             echo 'command-not-found block was not fully removed' >&2
@@ -467,6 +486,7 @@ jobs:
           head -20 /tmp/bootstrap-entries.txt
 
       - name: Upload bootstrap
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: nuxdroid-bootstrap-aarch64
