@@ -1,0 +1,364 @@
+#!/data/data/com.nuxdroid/files/usr/bin/bash
+# nux-repo - manage NuxDroid apt repositories
+set -euo pipefail
+
+log_info() { echo "[INFO] $*"; }
+log_warn() { echo "[WARN] $*" >&2; }
+log_err()  { echo "[ERROR] $*" >&2; }
+
+PREFIX="${PREFIX:-/data/data/com.nuxdroid/files/usr}"
+DRY_RUN=0
+FORCE=0
+ALLOW_HTTP=0
+
+CONF="$PREFIX/etc/nuxdroid/repos.conf"
+APT_SOURCES_DIR="$PREFIX/etc/apt/sources.list.d"
+KEYRING_DIR="$PREFIX/etc/apt/keyrings"
+
+usage() {
+    cat <<EOF
+Usage: nux-repo <command> [options]
+
+Commands:
+  build <dir-debs> <dir-output> [--dist D] [--comp C] [--sign KEYID] [--force]
+  add <name> <url> <dist> <comp> [--key URL] [--insecure] [--allow-http]
+  remove <name>
+  list
+  apply [--dry-run]
+
+Options:
+  --dry-run     Show what would be done without changing anything
+  --force       Overwrite existing output dir (build) / skip confirm
+  --allow-http  Allow http:// URLs (testing only)
+  --insecure    Mark repo as trusted (no signature verification)
+  --help        Show this help
+EOF
+}
+
+# --- build subcommand ---
+cmd_build() {
+    local debsdir="" outdir="" dist="stable" comp="main" sign="" 
+    # parse
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dist) dist="$2"; shift 2;;
+            --comp) comp="$2"; shift 2;;
+            --sign) sign="$2"; shift 2;;
+            --force) FORCE=1; shift;;
+            --dry-run) DRY_RUN=1; shift;;
+            -*) log_err "unknown option $1"; exit 2;;
+            *) args+=("$1"); shift;;
+        esac
+    done
+    if [[ ${#args[@]} -lt 2 ]]; then
+        log_err "usage: nux-repo build <dir-debs> <dir-output> [...]"
+        exit 2
+    fi
+    debsdir="${args[0]}"
+    outdir="${args[1]}"
+
+    if ! command -v termux-apt-repo >/dev/null 2>&1; then
+        log_err "termux-apt-repo not found. Install with: pip3 install termux-apt-repo"
+        exit 1
+    fi
+    if [[ ! -d "$debsdir" ]]; then
+        log_err "debs dir not found: $debsdir"
+        exit 2
+    fi
+    # safety: outdir must not be inside debsdir
+    local real_debs real_out
+    real_debs=$(cd "$debsdir" && pwd)
+    if [[ -e "$outdir" ]]; then
+        if [[ "$FORCE" != "1" ]]; then
+            log_warn "output dir already exists: $outdir"
+            read -r -p "Overwrite? [y/N] " ans
+            [[ "$ans" == "y" || "$ans" == "Y" ]] || { log_info "aborted"; exit 0; }
+        fi
+    fi
+    # check containment
+    case "$outdir" in
+        "$real_debs"|"$real_debs"/*)
+            log_err "output dir must not be inside debs dir"
+            exit 2
+            ;;
+    esac
+
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log_info "[dry-run] would run: termux-apt-repo $debsdir $outdir"
+        return 0
+    fi
+
+    # termux-apt-repo deletes outdir if exists
+    if [[ -e "$outdir" ]]; then
+        rm -rf "$outdir"
+    fi
+    mkdir -p "$outdir"
+
+    local tar_args=("$debsdir" "$outdir" "$dist" "$comp")
+    [[ -n "$sign" ]] && tar_args+=("--sign" "$sign")
+
+    termux-apt-repo "${tar_args[@]}"
+    log_info "repo built at $outdir"
+}
+
+# --- config helpers ---
+ensure_dirs() {
+    mkdir -p "$(dirname "$CONF")" "$APT_SOURCES_DIR" "$KEYRING_DIR"
+}
+
+read_repos() {
+    # print non-comment non-empty lines
+    if [[ -f "$CONF" ]]; then
+        grep -v '^[[:space:]]*#' "$CONF" | grep -v '^[[:space:]]*$' || true
+    fi
+}
+
+validate_name() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+}
+
+validate_url() {
+    local url="$1"
+    if [[ "$url" == https://* ]]; then
+        return 0
+    fi
+    if [[ "$url" == http://* && "$ALLOW_HTTP" == "1" ]]; then
+        return 0
+    fi
+    return 1
+}
+
+is_termux_mirror() {
+    local url="$1"
+    case "$url" in
+        *packages.termux.dev*|*packages-cf.termux.dev*|*termux.dev*) return 0;;
+    esac
+    return 1
+}
+
+# --- add ---
+cmd_add() {
+    local name="" url="" dist="" comp="" key="" insecure=0
+    local args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --key) key="$2"; shift 2;;
+            --insecure) insecure=1; shift;;
+            --allow-http) ALLOW_HTTP=1; shift;;
+            --dry-run) DRY_RUN=1; shift;;
+            -*) log_err "unknown option $1"; exit 2;;
+            *) args+=("$1"); shift;;
+        esac
+    done
+    if [[ ${#args[@]} -lt 4 ]]; then
+        log_err "usage: nux-repo add <name> <url> <dist> <comp> [--key URL] [--insecure] [--allow-http]"
+        exit 2
+    fi
+    name="${args[0]}"; url="${args[1]}"; dist="${args[2]}"; comp="${args[3]}"
+
+    if ! validate_name "$name"; then
+        log_err "invalid repo name: $name (^[a-z0-9][a-z0-9-]*$)"
+        exit 2
+    fi
+    if ! validate_url "$url"; then
+        log_err "URL must be https:// (use --allow-http for http testing)"
+        exit 2
+    fi
+    if is_termux_mirror "$url"; then
+        log_err "refusing Termux mirror URL: packages are built for com.termux prefix, incompatible with NuxDroid"
+        exit 2
+    fi
+
+    ensure_dirs
+    # build config line
+    local line="$name $url $dist $comp"
+    if [[ -n "$key" ]]; then
+        line="$line key=$key"
+    fi
+    if [[ "$insecure" == "1" ]]; then
+        line="$line trusted"
+    fi
+
+    # remove existing entry with same name
+    if [[ -f "$CONF" ]]; then
+        grep -v "^${name} " "$CONF" > "$CONF.tmp" 2>/dev/null || true
+        mv "$CONF.tmp" "$CONF"
+    fi
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log_info "[dry-run] would append: $line"
+    else
+        echo "$line" >> "$CONF"
+    fi
+    cmd_apply
+}
+
+# --- remove ---
+cmd_remove() {
+    local name="${1:-}"
+    if [[ -z "$name" ]]; then
+        log_err "usage: nux-repo remove <name>"
+        exit 2
+    fi
+    ensure_dirs
+    if [[ -f "$CONF" ]]; then
+        grep -v "^${name} " "$CONF" > "$CONF.tmp" 2>/dev/null || true
+        mv "$CONF.tmp" "$CONF"
+    fi
+    cmd_apply
+}
+
+# --- list ---
+cmd_list() {
+    ensure_dirs
+    if [[ ! -f "$CONF" ]]; then
+        log_info "no repos configured"
+        return 0
+    fi
+    echo "NAME            URL                                     DIST  COMP  KEY"
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        # parse
+        read -r name url dist comp rest <<< "$line"
+        local keyinfo="none"
+        if [[ "$rest" == *trusted* ]]; then keyinfo="trusted (insecure)"; fi
+        if [[ "$rest" == key=* ]]; then keyinfo="key"; fi
+        printf "%-15s %-40s %-5s %-5s %s\n" "$name" "$url" "$dist" "$comp" "$keyinfo"
+    done < "$CONF"
+}
+
+# --- apply ---
+cmd_apply() {
+    ensure_dirs
+    local dry="${DRY_RUN}"
+
+    # collect configured names
+    declare -A configured=()
+    local lines=()
+    if [[ -f "$CONF" ]]; then
+        while IFS= read -r line; do
+            [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+            lines+=("$line")
+            read -r name _ <<< "$line"
+            configured["$name"]=1
+        done < "$CONF"
+    fi
+
+    # remove stale nux-*.list and keyrings
+    for f in "$APT_SOURCES_DIR"/nux-*.list; do
+        [[ -e "$f" ]] || continue
+        local base
+        base=$(basename "$f" .list)   # nux-<name>
+        local name="${base#nux-}"
+        if [[ -z "${configured[$name]:-}" ]]; then
+            if [[ "$dry" == "1" ]]; then
+                log_info "[dry-run] would remove stale $f"
+            else
+                rm -f "$f"
+                rm -f "$KEYRING_DIR/nux-$name.gpg" "$KEYRING_DIR/nux-$name.asc"
+                log_info "removed stale repo: $name"
+            fi
+        fi
+    done
+
+    # generate for each configured repo
+    for line in "${lines[@]}"; do
+        read -r name url dist comp rest <<< "$line"
+        local key="" trusted=0
+        for token in $rest; do
+            case "$token" in
+                key=*) key="${token#key=}";;
+                trusted) trusted=1;;
+            esac
+        done
+
+        local listfile="$APT_SOURCES_DIR/nux-$name.list"
+        local keyring=""
+        if [[ "$trusted" == "1" ]]; then
+            log_warn "SECURITY: repo '$name' marked trusted (no signature verification)"
+        fi
+
+        # download key if provided
+        if [[ -n "$key" ]]; then
+            local tmpkey
+            tmpkey=$(mktemp)
+            if [[ "$dry" == "1" ]]; then
+                log_info "[dry-run] would download key from $key"
+            else
+                if ! curl -fsSL "$key" -o "$tmpkey" 2>/dev/null; then
+                    log_err "failed to download key: $key"
+                    rm -f "$tmpkey"
+                    continue
+                fi
+                # detect armored
+                if grep -q "BEGIN PGP PUBLIC KEY BLOCK" "$tmpkey" 2>/dev/null; then
+                    if command -v gpg >/dev/null 2>&1; then
+                        gpg --dearmor -o "$KEYRING_DIR/nux-$name.gpg" "$tmpkey" 2>/dev/null || cp "$tmpkey" "$KEYRING_DIR/nux-$name.asc"
+                    else
+                        cp "$tmpkey" "$KEYRING_DIR/nux-$name.asc"
+                    fi
+                else
+                    cp "$tmpkey" "$KEYRING_DIR/nux-$name.gpg"
+                fi
+                rm -f "$tmpkey"
+                if [[ -f "$KEYRING_DIR/nux-$name.gpg" ]]; then
+                    keyring="$KEYRING_DIR/nux-$name.gpg"
+                elif [[ -f "$KEYRING_DIR/nux-$name.asc" ]]; then
+                    keyring="$KEYRING_DIR/nux-$name.asc"
+                fi
+            fi
+        fi
+
+        # build list line
+        local opts=""
+        if [[ "$trusted" == "1" ]]; then
+            opts="[trusted=yes]"
+        elif [[ -n "$keyring" ]]; then
+            opts="[signed-by=$keyring]"
+        fi
+
+        local content="# managed by nux-repo, do not edit
+deb $opts $url $dist $comp
+"
+        if [[ "$dry" == "1" ]]; then
+            log_info "[dry-run] would write $listfile:"
+            echo "$content"
+        else
+            printf '%s' "$content" > "$listfile.tmp"
+            mv "$listfile.tmp" "$listfile"
+            log_info "synced repo: $name"
+        fi
+    done
+
+    if [[ "$dry" != "1" ]]; then
+        log_info "running apt update..."
+        apt update || log_warn "apt update failed"
+    fi
+}
+
+# --- main ---
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    usage; exit 0
+fi
+
+# parse global flags
+args=()
+for a in "$@"; do
+    case "$a" in
+        --dry-run) DRY_RUN=1;;
+        --force) FORCE=1;;
+        --allow-http) ALLOW_HTTP=1;;
+        *) args+=("$a");;
+    esac
+done
+set -- "${args[@]}"
+
+case "${1:-}" in
+    build) shift; cmd_build "$@";;
+    add) shift; cmd_add "$@";;
+    remove) shift; cmd_remove "$@";;
+    list) cmd_list;;
+    apply) shift; cmd_apply "$@";;
+    "") usage; exit 2;;
+    *) log_err "unknown command: $1"; usage; exit 2;;
+esac

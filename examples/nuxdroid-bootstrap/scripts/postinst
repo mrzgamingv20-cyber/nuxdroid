@@ -1,0 +1,20 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# nuxdroid-bootstrap postinst - extract bootstrap files to prefix
+set -euo pipefail
+
+PREFIX="${PREFIX:-/data/data/com.nuxdroid/files/usr}"
+
+log_info() { echo "[INFO] $*"; }
+log_err() { echo "[ERROR] $*" >&2; }
+
+log_info "nuxdroid-bootstrap: setting up prefix at $PREFIX"
+
+# Create essential directories
+mkdir -p "$PREFIX"/{bin,lib,libexec,etc,share,var/lib/dpkg,tmp}
+
+# The actual bootstrap files are provided by the NuxDroid app on first launch.
+# This meta-package only ensures dependencies are registered in dpkg.
+# The app will extract the real bootstrap zip to $PREFIX.
+log_info "nuxdroid-bootstrap: dependencies registered. Run NuxDroid app to extract bootstrap."
+
+exit 0

@@ -1,0 +1,208 @@
+#!/data/data/com.nuxdroid/files/usr/bin/bash
+# nux-mkdeb - build a .deb from a spec directory
+set -euo pipefail
+
+log_info() { echo "[INFO] $*"; }
+log_warn() { echo "[WARN] $*" >&2; }
+log_err()  { echo "[ERROR] $*" >&2; }
+
+PREFIX="${PREFIX:-/data/data/com.nuxdroid/files/usr}"
+DRY_RUN=0
+
+usage() {
+    cat <<EOF
+Usage: nux-mkdeb [--dry-run] <spec-dir>
+       nux-mkdeb init <name>
+       nux-mkdeb --help
+
+Build a .deb from a spec directory. See README for spec layout.
+EOF
+}
+
+# --- init subcommand ---
+cmd_init() {
+    local name="${1:-}"
+    if [[ -z "$name" ]]; then
+        log_err "missing package name"
+        exit 2
+    fi
+    if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+        log_err "invalid package name: $name"
+        exit 2
+    fi
+    mkdir -p "$name/files/bin" "$name/scripts"
+    cat > "$name/control" <<EOF
+Package: $name
+Version: 1.0.0
+Architecture: aarch64
+Maintainer: NuxDroid User <user@nuxdroid>
+Description: Short description of $name
+EOF
+    cat > "$name/files/bin/$name" <<EOF
+#!/data/data/com.nuxdroid/files/usr/bin/bash
+echo "Hello from $name"
+EOF
+    chmod 755 "$name/files/bin/$name"
+    log_info "created spec template in $name/"
+}
+
+# --- helpers ---
+validate_pkg_name() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9+.-]*$ ]]
+}
+validate_version() {
+    [[ -n "$1" ]]
+}
+
+# --- build ---
+cmd_build() {
+    local specdir="$1"
+    if [[ ! -d "$specdir" ]]; then
+        log_err "spec dir not found: $specdir"
+        exit 2
+    fi
+    if [[ ! -f "$specdir/control" ]]; then
+        log_err "missing control file: $specdir/control"
+        exit 2
+    fi
+
+    # parse control
+    local pkg version arch depends desc maintainer
+    pkg=$(sed -n 's/^Package:[[:space:]]*//p' "$specdir/control" | head -1)
+    version=$(sed -n 's/^Version:[[:space:]]*//p' "$specdir/control" | head -1)
+    arch=$(sed -n 's/^Architecture:[[:space:]]*//p' "$specdir/control" | head -1)
+    arch="${arch:-aarch64}"
+    depends=$(sed -n 's/^Depends:[[:space:]]*//p' "$specdir/control" | head -1)
+    desc=$(sed -n 's/^Description:[[:space:]]*//p' "$specdir/control" | head -1)
+    maintainer=$(sed -n 's/^Maintainer:[[:space:]]*//p' "$specdir/control" | head -1)
+
+    if [[ -z "$pkg" || -z "$version" || -z "$desc" || -z "$maintainer" ]]; then
+        log_err "missing required field (Package, Version, Description, Maintainer)"
+        exit 2
+    fi
+    if ! validate_pkg_name "$pkg"; then
+        log_err "invalid package name: $pkg"
+        exit 2
+    fi
+    if ! validate_version "$version"; then
+        log_err "invalid version: $version"
+        exit 2
+    fi
+
+    # validate paths in files/
+    if [[ -d "$specdir/files" ]]; then
+        while IFS= read -r -d '' f; do
+            rel="${f#$specdir/files/}"
+            if [[ "$rel" == /* ]] || [[ "$rel" == ../* ]] || [[ "$rel" == */../* ]] || [[ "$rel" == *.. ]]; then
+                log_err "unsafe path in files/: $rel"
+                exit 2
+            fi
+        done < <(find "$specdir/files" -type f -print0 2>/dev/null)
+    fi
+
+    # staging dir
+    local stage
+    stage=$(mktemp -d)
+    chmod 755 "$stage"
+    trap "rm -rf '$stage'" EXIT
+
+    local relprefix="${PREFIX#/}"   # e.g. data/data/com.nuxdroid/files/usr
+    mkdir -p "$stage/$relprefix"
+
+    if [[ -d "$specdir/files" ]]; then
+        (cd "$specdir/files" && cp -a . "$stage/$relprefix/")
+    fi
+
+    # DEBIAN dir
+    mkdir -p "$stage/DEBIAN"
+    chmod 755 "$stage/DEBIAN"
+    {
+        echo "Package: $pkg"
+        echo "Version: $version"
+        echo "Architecture: $arch"
+        [[ -n "$depends" ]] && echo "Depends: $depends"
+        echo "Maintainer: $maintainer"
+        echo "Description: $desc"
+    } > "$stage/DEBIAN/control"
+
+    # maintainer scripts
+    for s in preinst postinst prerm postrm; do
+        if [[ -f "$specdir/scripts/$s" ]]; then
+            cp "$specdir/scripts/$s" "$stage/DEBIAN/$s"
+            chmod 755 "$stage/DEBIAN/$s"
+        fi
+    done
+
+    # Installed-Size
+    local size_kb
+    size_kb=$(du -sk "$stage/$relprefix" 2>/dev/null | cut -f1)
+    size_kb="${size_kb:-0}"
+    echo "Installed-Size: $size_kb" >> "$stage/DEBIAN/control"
+
+    # warnings
+    if [[ -d "$stage/$relprefix" ]]; then
+        while IFS= read -r -d '' f; do
+            if file "$f" 2>/dev/null | grep -qi text; then
+                if grep -q "com\.termux" "$f" 2>/dev/null; then
+                    log_warn "text file contains 'com.termux': ${f#$stage/}"
+                fi
+            fi
+            if file "$f" 2>/dev/null | grep -qi ELF; then
+                if command -v readelf >/dev/null 2>&1; then
+                    local interp
+                    interp=$(readelf -l "$f" 2>/dev/null | grep -o 'Requesting program interpreter: [^]]*' | sed 's/.*: //;s/\]//')
+                    if [[ -n "$interp" ]]; then
+                        case "$interp" in
+                            /system/bin/linker*|/system/bin/linker64) : ;;
+                            /lib/ld-linux*|/lib64/ld-linux*) log_warn "ELF uses glibc interpreter ($interp): ${f#$stage/}";;
+                            */ld-musl-*) log_warn "ELF uses musl interpreter ($interp): ${f#$stage/}";;
+                            *) log_warn "ELF interpreter not Android-native ($interp): ${f#$stage/}";;
+                        esac
+                    fi
+                fi
+            fi
+        done < <(find "$stage/$relprefix" -type f -print0)
+    fi
+
+    local outname="${pkg}_${version}_${arch}.deb"
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log_info "[dry-run] would build $outname from $stage"
+        return 0
+    fi
+
+    if dpkg-deb --root-owner-group -b "$stage" "$outname" >/dev/null 2>&1; then
+        :
+    else
+        log_warn "dpkg-deb --root-owner-group failed, trying fakeroot"
+        fakeroot dpkg-deb -b "$stage" "$outname"
+    fi
+    log_info "built $outname"
+}
+
+# --- main ---
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    usage; exit 0
+fi
+
+# parse --dry-run anywhere
+args=()
+for a in "$@"; do
+    if [[ "$a" == "--dry-run" ]]; then
+        DRY_RUN=1
+    else
+        args+=("$a")
+    fi
+done
+set -- "${args[@]}"
+
+case "${1:-}" in
+    init)
+        cmd_init "${2:-}"
+        ;;
+    "")
+        usage; exit 2
+        ;;
+    *)
+        cmd_build "$1"
+        ;;
+esac

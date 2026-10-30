@@ -1,0 +1,13 @@
+Package: nuxdroid-bootstrap
+Version: 1.0.0
+Architecture: aarch64
+Maintainer: NuxDroid <nuxdroid@example.com>
+Depends: apt, bash, coreutils, dash, diffutils, findutils, gawk, grep, gzip, less, procps, psmisc, sed, tar, termux-core, termux-exec, termux-keyring, termux-licenses, termux-tools, util-linux, libandroid-support, libc++, libcurl, libbz2, openssl, ncurses, readline, xz-utils, zlib, curl, ca-certificates, dpkg
+Description: NuxDroid base bootstrap meta-package
+ This meta-package pulls all essential packages required for the NuxDroid
+ prefix (/data/data/com.nuxdroid/files/usr). Installing this package
+ sets up a functional Linux environment on Android without root.
+ .
+ The actual bootstrap extraction is handled by the NuxDroid app on first
+ launch. This package ensures all dependencies are present in the apt
+ database so that 'pkg upgrade' works correctly.

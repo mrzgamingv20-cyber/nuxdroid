@@ -1,0 +1,6 @@
+Package: hello-nux
+Version: 1.0.0
+Architecture: aarch64
+Maintainer: NuxDroid <nuxdroid@example.com>
+Description: A tiny hello-world package for NuxDroid
+EOF

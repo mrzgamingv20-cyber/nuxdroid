@@ -1,0 +1,40 @@
+name: Publish NuxDroid Packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev
+          pip3 install termux-apt-repo
+
+      - name: Build all .deb packages
+        run: |
+          mkdir -p out/debs
+          for spec in packages/*/; do
+            [ -d "$spec" ] || continue
+            ( cd "$spec" && bash ../../bin/nux-mkdeb . ) || exit 1
+            mv *.deb ../../out/debs/ 2>/dev/null || true
+          done
+          ls -lh out/debs/
+
+      - name: Build apt repository
+        run: |
+          bash bin/nux-repo build out/debs out/repo --dist stable --comp main
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out/repo
