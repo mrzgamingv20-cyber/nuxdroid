@@ -106,6 +106,22 @@ launches skip it because the prefix already exists.
 5. Phase 1: NuxDroid launcher, app shortcuts, file manager, settings.
 6. Later: optional apps, audio, GPU acceleration.
 
+## Package repository
+
+NuxDroid uses a custom package repository hosted on GitHub Pages:
+
+- **Repo**: https://github.com/mrzgamingv20-cyber/nuxdroid-packages
+- **URL**: https://mrzgamingv20-cyber.github.io/nuxdroid-packages
+- **Architecture**: aarch64 (ARM64) only
+- **Default sources.list**: `deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main`
+
+The bootstrap is configured to use this repository by default. The
+`repair-prefix.sh` script also sets it up for already-installed prefixes.
+
+To add new packages, build `.deb` files for `aarch64`, place them in
+`pool/main/`, regenerate `Packages`/`Packages.gz` with `dpkg-scanpackages`,
+and push to the repo.
+
 ## Licensing
 
 NuxDroid is based on Termux. The combined application is distributed under
