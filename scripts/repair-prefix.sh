@@ -118,10 +118,15 @@ echo "Prefix repair complete."
 echo "  changed files: $changed"
 echo "  backups:       $backup_dir"
 echo
+# Configure NuxDroid package repository (replaces official Termux repo)
+if [ -f "$PREFIX/etc/apt/sources.list" ]; then
+	echo "deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main" > "$PREFIX/etc/apt/sources.list"
+	echo "Configured NuxDroid package repository."
+fi
+
 echo "Test with:"
 echo "  pkg --help"
 echo "  pkg install fastfetch"
 echo
-echo "Note: the NuxDroid package repository is not configured yet, so"
-echo "'pkg install' can still report that it cannot find a package."
+echo "Package repository: https://mrzgamingv20-cyber.github.io/nuxdroid-packages"
 echo "The permission-denied error from termux-setup-package-manager is fixed."

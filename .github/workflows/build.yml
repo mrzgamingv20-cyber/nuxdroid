@@ -232,8 +232,8 @@ jobs:
           )
           apt_sources_new = (
               '\t{\n'
-              '\t\techo "# NuxDroid: custom package repository is not configured yet."\n'
-              '\t\techo "# Do not use the official Termux repository with this prefix."\n'
+              '\t\techo "# NuxDroid: custom package repository (GitHub Pages)"\n'
+              '\t\techo "deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main"\n'
               '\t} > $TERMUX_PREFIX/etc/apt/sources.list'
           )
           if apt_sources_old not in apt_text:
