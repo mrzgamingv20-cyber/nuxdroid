@@ -61,6 +61,12 @@ android {
         manifestPlaceholders.TERMUX_TASKER_APP_NAME = "NuxDroid:Tasker"
         manifestPlaceholders.TERMUX_WIDGET_APP_NAME = "NuxDroid:Widget"
 
+        externalNativeBuild {
+            ndkBuild {
+                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
+            }
+        }
+
         splits {
             abi {
                 enable ((gradle.startParameter.taskNames.any { it.contains("Debug") } && splitAPKsForDebugBuilds == "1") ||
@@ -101,6 +107,12 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/cpp/Android.mk"
+        }
+    }
 
     lint {
         disable 'ProtectedPermissions'
@@ -210,10 +222,22 @@ clean {
 
 task downloadBootstraps() {
     doLast {
-        // Bootstrap is now downloaded at runtime from:
-        // https://github.com/mrzgamingv20-cyber/nuxdroid-bootstrap
-        // No need to download or embed it in the APK.
-        logger.quiet("Bootstrap will be downloaded on first launch.")
+        def packageVariant = project.ext.packageVariant
+        if (packageVariant == "apt-android-7") {
+            def customChecksum = System.getenv("TERMUX_BOOTSTRAP_SHA256")
+            def customUrl = System.getenv("TERMUX_BOOTSTRAP_URL")
+            if (customChecksum) {
+                downloadBootstrap("aarch64", customChecksum, null, customUrl)
+            } else {
+                def version = "2026.02.12-r1" + "%2B" + "apt.android-7"
+                downloadBootstrap("aarch64", "ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3", version)
+            }
+        } else if (packageVariant == "apt-android-5") {
+            def version = "2022.04.28-r6" + "+" + packageVariant
+            downloadBootstrap("aarch64", "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7", version)
+        } else {
+            throw new GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"" + packageVariant + "\"")
+        }
     }
 }
 
