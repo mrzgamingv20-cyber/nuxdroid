@@ -1,0 +1,373 @@
+name: Build NuxDroid Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Bootstrap version (e.g., 0.1.0)
+        type: string
+        default: "0.1.0"
+  push:
+    branches:
+      - bootstrap-release
+    paths:
+      - ".github/workflows/build-bootstrap.yml"
+
+permissions:
+  contents: write
+
+env:
+  TERMUX_PACKAGES_COMMIT: 824221abf741a02ac50dc8ce161b52604b3e1a58
+  TERMUX_APP__PACKAGE_NAME: com.nuxdroid
+
+jobs:
+  bootstrap:
+    name: Build custom bootstrap (com.nuxdroid)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout NuxDroid
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache /usr/local/share/boost /usr/local/lib/node_modules /usr/share/swift /usr/lib/mono
+          sudo apt-get clean
+          docker system prune -af || true
+          df -h
+
+      - name: Checkout Termux packages
+        uses: actions/checkout@v4
+        with:
+          repository: termux/termux-packages
+          ref: ${{ env.TERMUX_PACKAGES_COMMIT }}
+          path: termux-packages
+          fetch-depth: 1
+
+      - name: Configure custom prefix
+        working-directory: termux-packages
+        run: |
+          sed -i \
+            "s/^TERMUX_APP__PACKAGE_NAME=\"com.termux\"/TERMUX_APP__PACKAGE_NAME=\"${TERMUX_APP__PACKAGE_NAME}\"/" \
+            scripts/properties.sh
+          grep -n '^TERMUX_APP__PACKAGE_NAME=' scripts/properties.sh
+          grep -n '^TERMUX_APP__DATA_DIR=' scripts/properties.sh
+
+          cat >> scripts/properties.sh <<'EOF'
+
+          # Export custom Termux paths for child build systems (configure, make, etc.).
+          export TERMUX_APP__PACKAGE_NAME TERMUX_APP_PACKAGE TERMUX_APP__DATA_DIR
+          export TERMUX__ROOTFS TERMUX_BASE_DIR
+          export TERMUX__HOME TERMUX_ANDROID_HOME
+          export TERMUX__PREFIX TERMUX_PREFIX
+          export TERMUX__PREFIX_CLASSICAL TERMUX_PREFIX_CLASSICAL
+          export TERMUX__CACHE_DIR TERMUX_CACHE_DIR
+          export TERMUX_APPS_DIR
+          export TERMUX_PACKAGE_FORMAT
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/build-bootstraps.sh')
+          text = path.read_text()
+
+          # Remove command-not-found block
+          not_found_block = (
+              '\t\tif ! ${BOOTSTRAP_ANDROID10_COMPATIBLE}; then\n'
+              '\t\t\tPACKAGES+=("command-not-found")\n'
+              '\t\telse\n'
+              '\t\t\tPACKAGES+=("proot")\n'
+              '\t\tfi\n'
+          )
+          if not_found_block not in text:
+              raise SystemExit('command-not-found/proot block not found')
+          text = text.replace(not_found_block, '')
+
+          # Use libbz2 instead of bzip2
+          bzip2_entry = '\t\tPACKAGES+=("bzip2")\n'
+          if bzip2_entry not in text:
+              raise SystemExit('bzip2 package entry not found')
+          text = text.replace(bzip2_entry, '\t\tPACKAGES+=("libbz2")\n')
+
+          # Fix forced cleanup
+          force_old = (
+              '\t\tif [[ $FORCE_BUILD_PACKAGES == "1" ]]; then\n'
+              '\t\t\trm -f "$TERMUX_BUILT_PACKAGES_DIRECTORY_FOR_ARCH"/*\n'
+              '\t\t\trm -f "$TERMUX_BUILT_DEBS_DIRECTORY"/*\n'
+              '\t\tfi'
+          )
+          force_new = (
+              '\t\tif [[ $FORCE_BUILD_PACKAGES == "1" ]]; then\n'
+              '\t\t\trm -f "${TERMUX_BUILT_PACKAGES_DIRECTORY:?}"/*\n'
+              '\t\t\trm -f "$TERMUX_BUILT_DEBS_DIRECTORY"/*\n'
+              '\t\tfi'
+          )
+          if force_old not in text:
+              raise SystemExit('build-bootstraps.sh force cleanup block not found')
+          text = text.replace(force_old, force_new)
+
+          # Add cleanup of build directories
+          old = (
+              '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
+              '\t\t\tset +e\n'
+              '\t\t\tbuild_package "$TERMUX_ARCH" "$package_name" || return $?\n'
+              '\t\t\tset -e\n'
+              '\t\tdone'
+          )
+          new = (
+              '\t\tfor package_name in "${PACKAGES[@]}"; do\n'
+              '\t\t\tset +e\n'
+              '\t\t\tbuild_package "$TERMUX_ARCH" "$package_name" || return $?\n'
+              '\t\t\tset -e\n'
+              '\t\t\trm -rf "$HOME/.termux-build"/*/build "$HOME/.termux-build"/*/src "$HOME/.termux-build"/*/massage "$HOME/.termux-build"/*/tmp 2>/dev/null || true\n'
+              '\t\tdone'
+          )
+          if old not in text:
+              raise SystemExit('build-bootstraps.sh loop pattern not found')
+          text = text.replace(old, new)
+
+          # Keep a copy of the bootstrap archive inside the container home
+          archive_old = (
+              ')\n'
+              '\n'
+              '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
+          )
+          archive_new = (
+              ')\n'
+              '\n'
+              '\tcp -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "/home/builder/bootstrap-${1}.zip" || true\n'
+              '\tmv -f "${BOOTSTRAP_TMPDIR}/bootstrap-${1}.zip" "$TERMUX_PACKAGES_DIRECTORY/"\n'
+          )
+          if archive_old not in text:
+              raise SystemExit('create_bootstrap_archive mv block not found')
+          text = text.replace(archive_old, archive_new)
+
+          # Disable official Termux apt repository
+          apt_path = Path('packages/apt/build.sh')
+          apt_text = apt_path.read_text()
+          apt_sources_old = (
+              '\t{\n'
+              '\t\techo "# The main termux repository, with cloudflare cache"\n'
+              '\t\techo "deb https://packages-cf.termux.dev/apt/termux-main/ stable main"\n'
+              '\t\techo "# The main termux repository, without cloudflare cache"\n'
+              '\t\techo "# deb https://packages.termux.dev/apt/termux-main/ stable main"\n'
+              '\t} > $TERMUX_PREFIX/etc/apt/sources.list'
+          )
+          apt_sources_new = (
+              '\t{\n'
+              '\t\techo "# NuxDroid: custom package repository (GitHub Pages)"\n'
+              '\t\techo "deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main"\n'
+              '\t} > $TERMUX_PREFIX/etc/apt/sources.list'
+          )
+          if apt_sources_old not in apt_text:
+              raise SystemExit('apt sources.list block not found')
+          apt_path.write_text(apt_text.replace(apt_sources_old, apt_sources_new))
+
+          # Patch termux-tools post_make_install
+          termux_tools_path = Path('packages/termux-tools/build.sh')
+          termux_tools_text = termux_tools_path.read_text()
+          post_install_old = (
+              'termux_step_post_make_install() {\n'
+              '\tTERMUX_PKG_CONFFILES="$(cat "$TERMUX_PKG_BUILDDIR/conffiles")"\n'
+              '}\n'
+          )
+          post_install_new = (
+              'termux_step_post_make_install() {\n'
+              '\tTERMUX_PKG_CONFFILES="$(cat "$TERMUX_PKG_BUILDDIR/conffiles")"\n'
+              '\n'
+              '\t# Keep app component class names in the Termux Java namespace.\n'
+              '\tlocal app_pkg="$TERMUX_APP_PACKAGE"\n'
+              '\tlocal app_pkg_escaped="${app_pkg//./\\\\.}"\n'
+              '\tlocal app_ns="${TERMUX_APP__NAMESPACE:-com.termux}"\n'
+              '\tlocal script_path\n'
+              '\tfor script_path in "$TERMUX_PREFIX"/bin/*; do\n'
+              '\t\t[ -f "$script_path" ] || continue\n'
+              '\t\tgrep -Iq . "$script_path" 2>/dev/null || continue\n'
+              '\t\tif grep -q "${app_pkg}/${app_pkg}\\\\.app\\\\." "$script_path"; then\n'
+              '\t\t\tsed -i "s#${app_pkg_escaped}/${app_pkg_escaped}\\\\.app\\\\.#${app_pkg}/${app_ns}.app.#g" "$script_path"\n'
+              '\t\tfi\n'
+              '\tdone\n'
+              '}\n'
+          )
+          if post_install_old not in termux_tools_text:
+              raise SystemExit('termux-tools post_make_install block not found')
+          termux_tools_path.write_text(
+              termux_tools_text.replace(post_install_old, post_install_new)
+          )
+
+          # Patch termux-exec post_make_install (fix comment prefix)
+          termux_exec_path = Path('packages/termux-exec/build.sh')
+          termux_exec_text = termux_exec_path.read_text()
+          if 'termux_step_post_make_install()' in termux_exec_text:
+              raise SystemExit('termux-exec already defines termux_step_post_make_install')
+          termux_exec_post_install = (
+              '\n'
+              'termux_step_post_make_install() {\n'
+              '\tlocal script_path="$TERMUX_PREFIX/bin/termux-exec-ld-preload-lib"\n'
+              '\tif [ -f "$script_path" ]; then\n'
+              '\t\tsed -i "s#/data/data/com.termux#${TERMUX_PREFIX}#g" "$script_path"\n'
+              '\tfi\n'
+              '}\n'
+          )
+          termux_exec_path.write_text(termux_exec_text + termux_exec_post_install)
+
+          path.write_text(text)
+          PY
+
+      - name: Prepare builder container
+        working-directory: termux-packages
+        run: |
+          ./scripts/run-docker.sh true
+          sudo docker exec termux-package-builder sh -c '
+            set -e
+            echo "container user: $(id)"
+            ls -ldn /home/builder/termux-packages
+            touch /home/builder/.nuxdroid-write-test
+            rm -f /home/builder/.nuxdroid-write-test
+            echo "container home write test: OK"
+            mkdir -p /home/builder/termux-packages/output
+            touch /home/builder/termux-packages/output/.nuxdroid-write-test
+            rm -f /home/builder/termux-packages/output/.nuxdroid-write-test
+            echo "output write test: OK"
+          '
+          df -h
+          sudo docker exec termux-package-builder df -h /home/builder
+
+      - name: Build bootstrap
+        working-directory: termux-packages
+        run: |
+          set +e
+          ./scripts/run-docker.sh ./scripts/build-bootstraps.sh \
+            -f --architectures aarch64 \
+            --add termux-am,termux-am-socket
+          build_rc=$?
+          set -e
+          if [ ! -s bootstrap-aarch64.zip ]; then
+            echo "Bootstrap zip missing on host; recovering from container..."
+            sudo docker cp termux-package-builder:/home/builder/bootstrap-aarch64.zip ./bootstrap-aarch64.zip
+            sudo chown "$(id -u):$(id -g)" ./bootstrap-aarch64.zip
+          fi
+          if [ "$build_rc" -ne 0 ]; then
+            echo "Bootstrap build exited with code $build_rc" >&2
+            exit "$build_rc"
+          fi
+          df -h
+
+      - name: Prune build-only bootstrap packages
+        working-directory: termux-packages
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/.github/scripts/prune-bootstrap.py" \
+            bootstrap-aarch64.zip bootstrap-aarch64.pruned.zip
+          mv bootstrap-aarch64.pruned.zip bootstrap-aarch64.zip
+          df -h
+
+      - name: Verify bootstrap prefix isolation
+        working-directory: termux-packages
+        run: |
+          set -euo pipefail
+          rm -rf bootstrap-prefix-check
+          mkdir -p bootstrap-prefix-check
+          unzip -q bootstrap-aarch64.zip -d bootstrap-prefix-check
+
+          leaks="$(grep -rIl --binary-files=without-match \
+            '/data/data/com.termux' \
+            bootstrap-prefix-check/bin \
+            bootstrap-prefix-check/etc \
+            bootstrap-prefix-check/libexec \
+            bootstrap-prefix-check/var/lib/dpkg/info 2>/dev/null || true)"
+          if [ -n "$leaks" ]; then
+            echo "::error::Bootstrap files still reference the com.termux prefix:"
+            echo "$leaks"
+            exit 1
+          fi
+
+          for entry in bin/pkg bin/termux-info bin/termux-setup-storage bin/termux-reset; do
+            if ! grep -q 'com\.nuxdroid' "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not contain the com.nuxdroid package name"
+              exit 1
+            fi
+          done
+
+          for entry in bin/termux-open bin/termux-reset bin/termux-wake-lock bin/termux-wake-unlock; do
+            if ! grep -q 'com\.nuxdroid/com\.termux\.app\.' "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not keep component classes in com.termux"
+              exit 1
+            fi
+          done
+
+          for entry in bin/termux-reload-settings bin/termux-setup-storage; do
+            if ! grep -q 'com\.nuxdroid\.app\.reload_style' "bootstrap-prefix-check/$entry"; then
+              echo "::error::$entry does not use the NuxDroid reload action"
+              exit 1
+            fi
+          done
+
+          if grep -rIq --binary-files=without-match \
+            'com\.termux/com\.termux\.app\.|com\.termux\.app\.reload_style' \
+            bootstrap-prefix-check/bin bootstrap-prefix-check/etc; then
+            echo "::error::Bootstrap still contains old app component/action names"
+            exit 1
+          fi
+
+          echo "Bootstrap prefix isolation verification passed."
+          rm -rf bootstrap-prefix-check
+
+      - name: Verify bootstrap
+        working-directory: termux-packages
+        run: |
+          set -euo pipefail
+          test -s bootstrap-aarch64.zip
+          sha256sum bootstrap-aarch64.zip
+          unzip -t bootstrap-aarch64.zip > /tmp/bootstrap-test.log
+          unzip -p bootstrap-aarch64.zip var/lib/dpkg/status > /tmp/bootstrap-status.txt
+          package_count="$(grep -c '^Package:' /tmp/bootstrap-status.txt)"
+          echo "Bootstrap package count: $package_count"
+          test "$package_count" -ge 60
+          test "$package_count" -le 120
+          for package in apt bash dpkg termux-tools termux-exec termux-keyring termux-licenses curl openssl; do
+            count="$(grep -c "^Package: ${package}$" /tmp/bootstrap-status.txt || true)"
+            if [ "$count" -ne 1 ]; then
+              echo "missing or duplicate package: $package" >&2
+              exit 1
+            fi
+          done
+          for package in perl python doxygen docbook-xsl tor unbound libx11; do
+            if grep -q "^Package: ${package}$" /tmp/bootstrap-status.txt; then
+              echo "build-only package was not pruned: $package" >&2
+              exit 1
+            fi
+          done
+          unzip -l bootstrap-aarch64.zip > /tmp/bootstrap-entries.txt
+          grep -q 'SYMLINKS.txt' /tmp/bootstrap-entries.txt
+          echo "Bootstrap verification passed."
+          head -20 /tmp/bootstrap-entries.txt
+
+      - name: Upload bootstrap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxdroid-bootstrap-aarch64
+          path: termux-packages/bootstrap-aarch64.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish bootstrap to nuxdroid-bootstrap repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd /tmp
+          git clone https://github.com/mrzgamingv20-cyber/nuxdroid-bootstrap.git nuxdroid-bootstrap-repo || true
+          if [ ! -d nuxdroid-bootstrap-repo ]; then
+            mkdir nuxdroid-bootstrap-repo
+            cd nuxdroid-bootstrap-repo
+            git init
+            git remote add origin https://github.com/mrzgamingv20-cyber/nuxdroid-bootstrap.git
+          else
+            cd nuxdroid-bootstrap-repo
+          fi
+          cp "$GITHUB_WORKSPACE/termux-packages/bootstrap-aarch64.zip" .
+          sha256sum bootstrap-aarch64.zip > SHA256SUMS
+          git add bootstrap-aarch64.zip SHA256SUMS
+          git commit -m "Update bootstrap $(date +%Y%m%d-%H%M%S)" || true
+          git push origin main || git push origin master || true
