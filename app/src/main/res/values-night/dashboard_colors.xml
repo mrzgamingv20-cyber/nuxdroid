@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night (dark) palette for the dashboard menu. -->
+    <color name="dashboard_tile">#2C2C2C</color>
+    <color name="dashboard_tile_text">#F2F2F2</color>
+    <color name="dashboard_tile_icon">#FFFFFF</color>
+    <color name="dashboard_subtitle">#B0B0B0</color>
+</resources>

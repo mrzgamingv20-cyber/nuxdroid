@@ -26,11 +26,17 @@
 
 
     <!-- Termux Bootstrap Packages Installation -->
+    <string name="bootstrap_installer_title">Setting up &TERMUX_APP_NAME;</string>
     <string name="bootstrap_installer_body">Installing bootstrap packages…</string>
+    <string name="bootstrap_installer_counting">Preparing bootstrap packages…</string>
+    <string name="bootstrap_installer_extracting">Extracting packages (%1$d/%2$d)…</string>
     <string name="bootstrap_error_title">Unable to install bootstrap</string>
     <string name="bootstrap_error_body">&TERMUX_APP_NAME; was unable to install the bootstrap packages.</string>
     <string name="bootstrap_error_abort">Abort</string>
     <string name="bootstrap_error_try_again">Try again</string>
+    <string name="bootstrap_error_copy_details">Copy details</string>
+    <string name="bootstrap_error_details_copied">Error details copied to clipboard</string>
+    <string name="prefix_repaired_toast">Repaired %1$d file(s) in the Linux prefix. Backup: %2$s</string>
     <string name="bootstrap_error_not_primary_user_message">&TERMUX_APP_NAME; can only be run as the primary user.
         \nBootstrap binaries compiled for &TERMUX_APP_NAME; have hardcoded $PREFIX path and cannot be installed
         under any path other than:\n%1$s.</string>
@@ -234,5 +240,35 @@
 
     <!-- Donate Preference -->
     <string name="donate_preference_title">Donate</string>
+
+
+    <!-- Dashboard (main tile menu) -->
+    <string name="dashboard_tagline">Linux di HP kamu — lewat terminal asli</string>
+    <string name="dashboard_tile_terminal">Terminal</string>
+    <string name="dashboard_tile_desktop">Desktop (XFCE)</string>
+    <string name="dashboard_tile_packages">Install Paket</string>
+    <string name="dashboard_tile_settings">Pengaturan</string>
+    <string name="dashboard_version_placeholder">NuxDroid</string>
+    <string name="dashboard_version">NuxDroid v%1$s</string>
+    <string name="dashboard_desktop_title">Desktop belum tersedia</string>
+    <string name="dashboard_desktop_message">Sesi XFCE dan X server (Xlorie) belum disertai di aplikasi ini.\n\nRencananya: Xlorie ditanam ke APK, lalu paket XFCE dibangun untuk repo NuxDroid.\n\nSementara itu kamu bisa membuka Terminal untuk bekerja lewat shell.</string>
+    <string name="dashboard_packages_title">Install paket</string>
+    <string name="dashboard_open_terminal">Buka Terminal</string>
+    <string name="dashboard_later">Nanti saja</string>
+    <string name="dashboard_welcome_title">Selamat datang di NuxDroid</string>
+    <string name="dashboard_welcome_message">Ini pertama kali? Linux perlu disiapkan dulu.\n\nProsesnya berjalan saat kamu membuka Terminal, sekitar 1–2 menit dan hanya sekali.\n\nDari menu ini kamu bisa membuka Terminal, memasang paket, dan nanti meluncurkan desktop XFCE.</string>
+    <string name="dashboard_terminal_not_ready">Linux belum disiapkan. Membuka Terminal untuk instalasi awal…</string>
+    <string name="dashboard_action_failed">Gagal menjalankan perintah: %1$s</string>
+
+
+    <!-- Package list -->
+    <string name="packages_loading">Mengambil daftar paket dari nuxdroid-packages…</string>
+    <string name="packages_load_failed">Gagal mengambil daftar paket: %1$s</string>
+    <string name="packages_empty">Belum ada paket di repo.</string>
+    <string name="packages_retry">Coba lagi</string>
+    <string name="packages_install_action">Install</string>
+    <string name="packages_install_title">Install paket</string>
+    <string name="packages_install_confirm">Install %1$s versi %2$s?\n\nJalannya lewat terminal baru dengan: apt-get update &amp;&amp; apt-get install -y</string>
+    <string name="packages_name_invalid">Nama paket tidak valid: %1$s</string>
 
 </resources>

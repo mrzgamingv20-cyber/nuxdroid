@@ -3,12 +3,15 @@ package com.termux.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Build;
 import android.os.Environment;
 import android.system.Os;
 import android.util.Pair;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.shared.file.FileUtils;
@@ -61,6 +64,16 @@ final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
 
+    /**
+     * Whether the extracted prefix still contains the binaries no shell can start
+     * without. Both are guaranteed members of the bootstrap, so a miss means the
+     * prefix is broken and must be reinstalled, not used.
+     */
+    private static boolean isPrefixBootable() {
+        return new File(TERMUX_PREFIX_DIR_PATH, "bin/bash").exists()
+            && new File(TERMUX_PREFIX_DIR_PATH, "bin/dpkg").exists();
+    }
+
     /** Performs bootstrap setup if necessary. */
     static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {
         String bootstrapErrorMessage;
@@ -106,6 +119,11 @@ final class TermuxInstaller {
         if (FileUtils.directoryFileExists(TERMUX_PREFIX_DIR_PATH, true)) {
             if (TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
                 Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is empty or only contains specific unimportant files.");
+            } else if (!isPrefixBootable()) {
+                // A half written prefix (killed install, cleared files, broken symlink) would
+                // otherwise be trusted here and the first shell would fail with a cryptic
+                // "cannot execute" error. Fall through to a clean reinstall instead.
+                Logger.logError(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is not bootable (essential binaries missing), reinstalling the bootstrap.");
             } else {
                 whenDone.run();
                 return;
@@ -114,7 +132,17 @@ final class TermuxInstaller {
             Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" does not exist but another file exists at its destination.");
         }
 
-        final ProgressDialog progress = ProgressDialog.show(activity, null, activity.getString(R.string.bootstrap_installer_body), true, false);
+        // Horizontal progress with a real title: an endless spinner gives no
+        // feedback while a ~33 MB archive is unpacked on slow storage.
+        // The style must be set before show(), otherwise only a spinner shows.
+        final ProgressDialog progress = new ProgressDialog(activity);
+        progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progress.setTitle(R.string.bootstrap_installer_title);
+        progress.setMessage(activity.getString(R.string.bootstrap_installer_counting));
+        progress.setIndeterminate(true);
+        progress.setCancelable(false);
+        progress.setCanceledOnTouchOutside(false);
+        progress.show();
         new Thread() {
             @Override
             public void run() {
@@ -157,6 +185,22 @@ final class TermuxInstaller {
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
 
                     final byte[] zipBytes = loadZipBytes();
+
+                    // The archive is already fully in memory, so one cheap
+                    // extra pass gives a real entry count and turns the spinner
+                    // into a determinate progress bar.
+                    final int entryCount = countZipEntries(zipBytes);
+                    int extractedCount = 0;
+                    long lastUiUpdate = 0L;
+                    if (entryCount > 0) {
+                        final int max = entryCount;
+                        activity.runOnUiThread(() -> {
+                            progress.setIndeterminate(false);
+                            progress.setMax(max);
+                            progress.setProgress(0);
+                        });
+                    }
+
                     try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
@@ -201,6 +245,24 @@ final class TermuxInstaller {
                                     }
                                 }
                             }
+
+                            // Throttled UI update: one post every ~100ms is
+                            // enough and keeps 4k+ entries from flooding the
+                            // main thread.
+                            extractedCount++;
+                            long now = System.currentTimeMillis();
+                            if (now - lastUiUpdate >= 100L || (entryCount > 0 && extractedCount == entryCount)) {
+                                lastUiUpdate = now;
+                                final int done = extractedCount;
+                                activity.runOnUiThread(() -> {
+                                    if (entryCount > 0) {
+                                        progress.setProgress(done);
+                                        progress.setMessage(activity.getString(R.string.bootstrap_installer_extracting, done, entryCount));
+                                    } else {
+                                        progress.setMessage(activity.getString(R.string.bootstrap_installer_body));
+                                    }
+                                });
+                            }
                         }
                     }
 
@@ -239,15 +301,37 @@ final class TermuxInstaller {
         }.start();
     }
 
+    /**
+     * Count the entries of an in-memory bootstrap archive so extraction can
+     * report "1234/4526" instead of an endless spinner. Returns -1 when the
+     * archive cannot be read, in which case the dialog stays indeterminate.
+     */
+    private static int countZipEntries(byte[] zipBytes) {
+        try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            int count = 0;
+            while (zipInput.getNextEntry() != null) {
+                count++;
+            }
+            return count;
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Could not count bootstrap entries: " + e.getMessage());
+            return -1;
+        }
+    }
+
     public static void showBootstrapErrorDialog(Activity activity, Runnable whenDone, String message) {
         Logger.logErrorExtended(LOG_TAG, "Bootstrap Error:\n" + message);
 
         // Send a notification with the exception so that the user knows why bootstrap setup failed
         sendBootstrapCrashReportNotification(activity, message);
 
+        // Show the actual cause: previously the dialog only said "unable to
+        // install" and the reason went to the log where nobody sees it.
+        final String errorDetails = buildBootstrapErrorMessage(activity, message);
+
         activity.runOnUiThread(() -> {
             try {
-                new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(R.string.bootstrap_error_body)
+                new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(errorDetails)
                     .setNegativeButton(R.string.bootstrap_error_abort, (dialog, which) -> {
                         dialog.dismiss();
                         activity.finish();
@@ -256,11 +340,39 @@ final class TermuxInstaller {
                         dialog.dismiss();
                         FileUtils.deleteFile("termux prefix directory", TERMUX_PREFIX_DIR_PATH, true);
                         TermuxInstaller.setupBootstrapIfNeeded(activity, whenDone);
+                    })
+                    .setNeutralButton(R.string.bootstrap_error_copy_details, (dialog, which) -> {
+                        dialog.dismiss();
+                        copyErrorDetailsToClipboard(activity, errorDetails);
                     }).show();
             } catch (WindowManager.BadTokenException e1) {
                 // Activity already dismissed - ignore.
             }
         });
+    }
+
+    /** Generic explanation plus the underlying cause, truncated to stay readable. */
+    private static String buildBootstrapErrorMessage(Context context, String message) {
+        String body = context.getString(R.string.bootstrap_error_body);
+        if (message == null || message.trim().isEmpty()) return body;
+        String details = message.trim();
+        final int maxLength = 4000;
+        if (details.length() > maxLength) {
+            details = details.substring(0, maxLength) + "\n…";
+        }
+        return body + "\n\n" + details;
+    }
+
+    /** Lets the failure be pasted into a bug report without retyping it. */
+    private static void copyErrorDetailsToClipboard(Context context, String details) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) return;
+            clipboard.setPrimaryClip(ClipData.newPlainText(TermuxConstants.TERMUX_APP_NAME + " error", details));
+            Toast.makeText(context, R.string.bootstrap_error_details_copied, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Could not copy bootstrap error details: " + e.getMessage());
+        }
     }
 
     private static void sendBootstrapCrashReportNotification(Activity activity, String message) {

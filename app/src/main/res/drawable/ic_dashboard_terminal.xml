@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Terminal window with a prompt: main menu tile for the NuxDroid shell. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M3.5,5 h17 v14 h-17 z"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M7.5,9.5 l3.5,3.5 -3.5,3.5"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M13,16 h5"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+</vector>

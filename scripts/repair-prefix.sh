@@ -41,7 +41,7 @@ repair_file() {
 	fi
 
 	if ! grep -qE \
-		'/data/data/com\.termux|"com\.termux"|com\.termux/com\.termux\.app\.|com\.termux\.app\.reload_style|com\.termux\.service_wake_(lock|unlock)|Termux \(com\.termux;|escaped_package_name="com\.termux"' \
+		'/data/data/com\.termux|"com\.termux"|com\.termux/com\.termux\.app\.|com\.nuxdroid/com\.nuxdroid\.app\.|com\.termux\.app\.reload_style|com\.termux\.service_wake_(lock|unlock)|Termux \(com\.termux;|escaped_package_name="com\.termux"' \
 		"$file"; then
 		return 0
 	fi
@@ -55,6 +55,7 @@ repair_file() {
 	sed -i \
 		-e 's|/data/data/com\.termux|/data/data/com.nuxdroid|g' \
 		-e 's|com\.termux/com\.termux\.app\.|com.nuxdroid/com.termux.app.|g' \
+		-e 's|com\.nuxdroid/com\.nuxdroid\.app\.|com.nuxdroid/com.termux.app.|g' \
 		-e 's|com\.termux\.app\.reload_style|com.nuxdroid.app.reload_style|g' \
 		-e 's|com\.termux\.service_wake_lock|com.nuxdroid.service_wake_lock|g' \
 		-e 's|com\.termux\.service_wake_unlock|com.nuxdroid.service_wake_unlock|g' \
@@ -107,7 +108,7 @@ for entry in bin/termux-open bin/termux-reset bin/termux-wake-lock bin/termux-wa
 done
 
 if grep -rIq --binary-files=without-match \
-	'com\.termux/com\.termux\.app\.|com\.termux\.app\.reload_style|com\.termux\.service_wake_' \
+	'com\.termux/com\.termux\.app\.|com\.nuxdroid/com\.nuxdroid\.app\.|com\.termux\.app\.reload_style|com\.termux\.service_wake_' \
 	"$PREFIX/bin" "$PREFIX/etc" "$PREFIX/libexec" 2>/dev/null; then
 	echo "Repair incomplete; old app component/action names remain" >&2
 	exit 1

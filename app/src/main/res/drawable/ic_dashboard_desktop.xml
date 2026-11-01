@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monitor with stand: main menu tile for the XFCE/Xlorie desktop. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M3,5 h18 v11 h-18 z"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M12,16 v4"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M8,20 h8"
+        android:strokeColor="@color/dashboard_tile_icon"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.8" />
+</vector>
