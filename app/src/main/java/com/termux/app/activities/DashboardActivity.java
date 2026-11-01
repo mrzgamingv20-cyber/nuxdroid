@@ -25,9 +25,9 @@ public class DashboardActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         // Material You dynamic colors (Android 12+) with graceful fallback.
         DynamicColors.applyToActivityIfAvailable(this);
-        super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
 
         findViewById(R.id.dashboard_tile_terminal).setOnClickListener(view ->
