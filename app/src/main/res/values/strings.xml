@@ -29,7 +29,18 @@
     <string name="bootstrap_installer_title">Setting up &TERMUX_APP_NAME;</string>
     <string name="bootstrap_installer_body">Installing bootstrap packages…</string>
     <string name="bootstrap_installer_counting">Preparing bootstrap packages…</string>
-    <string name="bootstrap_installer_extracting">Extracting packages (%1$d/%2$d)…</string>
+<string name="bootstrap_phase_preparing">Menyiapkan bootstrap…</string>
+
+        <string name="bootstrap_installer_extracting">Extracting packages (%1$d/%2$d)…</string>
+    <string name="bootstrap_phase_preparing">Menyiapkan bootstrap…</string>
+    <string name="bootstrap_phase_extracting">Mengekstrak %1$d/%2$d file…</string>
+    <string name="bootstrap_phase_finishing">Menyelesaikan…</string>
+    <string name="bootstrap_error_note">Gagal menginstal bootstrap. Coba lagi atau hapus app.</string>
+    <string name="bootstrap_exit_title">Keluar NuxDroid</string>
+    <string name="bootstrap_exit_message">Anda akan kembali ke layar utama tanpa fitur Linux. Lanjut?</string>
+    <string name="bootstrap_exit_positive">Keluar</string>
+    <string name="bootstrap_exit_negative">Batal</string>
+    <string name="bootstrap_retry">Coba lagi</string>
     <string name="bootstrap_error_title">Unable to install bootstrap</string>
     <string name="bootstrap_error_body">&TERMUX_APP_NAME; was unable to install the bootstrap packages.</string>
     <string name="bootstrap_error_abort">Abort</string>
@@ -243,45 +254,44 @@
 
 
     <!-- Dashboard (main tile menu) -->
-    <string name="dashboard_tagline">Linux di HP kamu — lewat terminal asli</string>
-    <string name="dashboard_tile_desktop">Desktop (XFCE)</string>
-    <string name="dashboard_version">NuxDroid v%1$s</string>
-    <string name="dashboard_desktop_badge">Segera</string>
-    <string name="dashboard_status_ready">Siap</string>
-    <string name="dashboard_status_not_ready">Belum siap</string>
-    <string name="dashboard_status_card_title">Status Linux</string>
-    <string name="dashboard_status_ready_desc">Prefix terpasang — Terminal siap dipakai.</string>
-    <string name="dashboard_status_not_ready_desc">Prefix belum ada — buka Terminal untuk instalasi awal (sekitar 1–2 menit, sekali saja).</string>
-    <string name="dashboard_quick_update">Perbarui Paket</string>
-    <string name="dashboard_prefix_installed">Terpasang</string>
-    <string name="dashboard_prefix_missing">Kosong</string>
-    <string name="dashboard_desktop_unavailable_desc">Paket XFCE dan Xlorie sedang disiapkan untuk rilis berikutnya.</string>
+    <string name="dashboard_tagline">Linux on your phone, through a real terminal</string>
+    <string name="dashboard_tile_desktop">XFCE desktop</string>
+    <string name="dashboard_desktop_badge">Soon</string>
+    <string name="dashboard_status_ready">Ready</string>
+    <string name="dashboard_status_not_ready">Not ready</string>
+    <string name="dashboard_status_card_title">Linux status</string>
+    <string name="dashboard_status_ready_desc">Prefix installed. The terminal is ready to use.</string>
+    <string name="dashboard_status_not_ready_desc">No prefix yet. Open the terminal to run the first-time setup (about 1–2 minutes, once).</string>
+    <string name="dashboard_quick_update">Update packages</string>
+    <string name="dashboard_prefix_installed">Prefix installed</string>
+    <string name="dashboard_prefix_missing">No prefix</string>
+    <string name="dashboard_desktop_unavailable_desc">The XFCE and Xlorie packages are being prepared for a later release.</string>
     <string name="dashboard_meta_separator">·</string>
 
     <!-- Bottom navigation (shared shell) -->
-    <string name="nav_home">Beranda</string>
+    <string name="nav_home">Home</string>
     <string name="nav_terminal">Terminal</string>
-    <string name="nav_packages">Paket</string>
-    <string name="nav_settings">Pengaturan</string>
-    <string name="dashboard_desktop_title">Desktop belum tersedia</string>
-    <string name="dashboard_desktop_message">Sesi XFCE dan X server (Xlorie) belum disertai di aplikasi ini.\n\nRencananya: Xlorie ditanam ke APK, lalu paket XFCE dibangun untuk repo NuxDroid.\n\nSementara itu kamu bisa membuka Terminal untuk bekerja lewat shell.</string>
-    <string name="dashboard_packages_title">Install paket</string>
-    <string name="dashboard_open_terminal">Buka Terminal</string>
-    <string name="dashboard_later">Nanti saja</string>
-    <string name="dashboard_welcome_title">Selamat datang di NuxDroid</string>
-    <string name="dashboard_welcome_message">Ini pertama kali? Linux perlu disiapkan dulu.\n\nProsesnya berjalan saat kamu membuka Terminal, sekitar 1–2 menit dan hanya sekali.\n\nDari menu ini kamu bisa membuka Terminal, memasang paket, dan nanti meluncurkan desktop XFCE.</string>
-    <string name="dashboard_terminal_not_ready">Linux belum disiapkan. Membuka Terminal untuk instalasi awal…</string>
-    <string name="dashboard_action_failed">Gagal menjalankan perintah: %1$s</string>
+    <string name="nav_packages">Packages</string>
+    <string name="nav_settings">Settings</string>
+    <string name="dashboard_desktop_title">Desktop not available yet</string>
+    <string name="dashboard_desktop_message">The XFCE session and the X server (Xlorie) are not bundled yet.\n\nPlan: embed Xlorie in the APK, then build the XFCE packages for the NuxDroid repository.\n\nMeanwhile you can open the terminal and work from the shell.</string>
+    <string name="dashboard_packages_title">Install packages</string>
+    <string name="dashboard_open_terminal">Open terminal</string>
+    <string name="dashboard_later">Later</string>
+    <string name="dashboard_welcome_title">Welcome to NuxDroid</string>
+    <string name="dashboard_welcome_message">First time here? Linux needs a one-time setup.\n\nIt runs when you open the terminal: about 1–2 minutes, once only.\n\nFrom this app you can open the terminal, install packages, and later launch the XFCE desktop.</string>
+    <string name="dashboard_terminal_not_ready">Linux is not set up yet. Opening the terminal for the first-time setup…</string>
+    <string name="dashboard_action_failed">Could not run the command: %1$s</string>
 
 
     <!-- Package list -->
-    <string name="packages_loading">Mengambil daftar paket dari nuxdroid-packages…</string>
-    <string name="packages_load_failed">Gagal mengambil daftar paket: %1$s</string>
-    <string name="packages_empty">Belum ada paket di repo.</string>
-    <string name="packages_retry">Coba lagi</string>
+    <string name="packages_loading">Loading the package list from nuxdroid-packages…</string>
+    <string name="packages_load_failed">Could not load the package list: %1$s</string>
+    <string name="packages_empty">No packages in the repository yet.</string>
+    <string name="packages_retry">Try again</string>
     <string name="packages_install_action">Install</string>
-    <string name="packages_install_title">Install paket</string>
-    <string name="packages_install_confirm">Install %1$s versi %2$s?\n\nJalannya lewat terminal baru dengan: apt-get update &amp;&amp; apt-get install -y</string>
-    <string name="packages_name_invalid">Nama paket tidak valid: %1$s</string>
+    <string name="packages_install_title">Install package</string>
+    <string name="packages_install_confirm">Install %1$s version %2$s?\n\nIt runs in a new terminal session with: apt-get update &amp;&amp; apt-get install -y</string>
+    <string name="packages_name_invalid">Invalid package name: %1$s</string>
 
 </resources>

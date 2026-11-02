@@ -1,6 +1,5 @@
 package com.termux.app.activities;
 
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -132,14 +131,13 @@ public class PackagesActivity extends AppCompatActivity {
             Toast.makeText(this, getString(R.string.packages_name_invalid, pkg.name), Toast.LENGTH_LONG).show();
             return;
         }
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.packages_install_title)
-            .setMessage(getString(R.string.packages_install_confirm, pkg.name, pkg.version))
-            .setPositiveButton(R.string.packages_install_action, (dialog, which) ->
-                // Always refresh the index first: a stale index points at deleted files.
-                TerminalCommands.run(this, "apt-get update && apt-get install -y " + pkg.name))
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+        NuxDialog.show(this,
+            getString(R.string.packages_install_title),
+            getString(R.string.packages_install_confirm, pkg.name, pkg.version),
+            getString(R.string.packages_install_action),
+            // Always refresh the index first: a stale index points at deleted files.
+            () -> TerminalCommands.run(this, "apt-get update && apt-get install -y " + pkg.name),
+            getString(android.R.string.cancel));
     }
 
     /** Package names only: no shell metacharacters can ever reach the terminal. */

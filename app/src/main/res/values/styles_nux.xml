@@ -1,11 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Platform alert dialog skinned to the shell tokens, so the first run and
-     desktop notes stay dark and monochrome instead of flashing white. -->
+<!-- Shell-only styles: the dialog window and the tab transition. -->
 <resources>
-    <style name="ThemeOverlay.NuxDroid.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
-        <item name="android:colorAccent">@color/nux_text</item>
-        <item name="android:colorBackground">@color/nux_surface</item>
-        <item name="android:textColorPrimary">@color/nux_text</item>
-        <item name="android:textColorSecondary">@color/nux_text_muted</item>
+
+    <!-- Dialog window. The surface, corners and padding live in
+         res/layout/dialog_nux.xml, so the window itself is transparent and only
+         keeps the floating behaviour and the dim behind it. -->
+    <style name="Theme.NuxDroid.Dialog" parent="@android:style/Theme.Material.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+    </style>
+
+    <!-- Tab switch: crossfade, so a tab change does not slide a whole screen in
+         from the side like a push navigation. -->
+    <style name="Animation.NuxDroid.Tab" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/nux_fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/nux_fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/nux_fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/nux_fade_out</item>
     </style>
 </resources>

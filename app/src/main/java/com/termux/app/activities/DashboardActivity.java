@@ -12,8 +12,9 @@ import com.termux.R;
 import com.termux.shared.logger.Logger;
 
 /**
- * Beranda of the NuxDroid shell: a dark bento dashboard (status card, two stat
- * cards, one milestone card) above the shared floating navigation pill.
+ * Home of the NuxDroid shell: an editorial page (title, one status section, the
+ * desktop milestone and a quiet version line) above the shared flat navigation
+ * bar.
  */
 public class DashboardActivity extends AppCompatActivity {
 
@@ -53,9 +54,8 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     /**
-     * Desktop milestone is not available yet: the card already uses the muted
-     * surface token (so it reads as inactive without washing out its text) and
-     * only opens the honest dialog when tapped.
+     * Desktop milestone is not available yet: the row reads as inactive because
+     * of its "Soon" label and only opens the honest note when tapped.
      */
     private void setupMilestoneCard(int cardId) {
         View card = findViewById(cardId);
@@ -65,7 +65,7 @@ public class DashboardActivity extends AppCompatActivity {
         if (badge != null) badge.setVisibility(View.VISIBLE);
     }
 
-    /** Show the installed versionName in its stat card, or "?" if unreadable. */
+    /** Show the installed versionName in the meta line, or "?" if unreadable. */
     private void showVersion() {
         TextView versionView = findViewById(R.id.dashboard_version);
         if (versionView == null) return;
@@ -78,7 +78,7 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    /** Reflect whether the Linux prefix is ready in the status card. */
+    /** Reflect whether the Linux prefix is ready in the status section. */
     private void showStatus() {
         boolean ready = TerminalCommands.isReady();
 
@@ -114,23 +114,21 @@ public class DashboardActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("dashboard", MODE_PRIVATE);
         if (prefs.getBoolean(PREF_FIRST_RUN_HINT, false) || TerminalCommands.isReady()) return;
         prefs.edit().putBoolean(PREF_FIRST_RUN_HINT, true).apply();
-        new android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.dashboard_welcome_title)
-            .setMessage(R.string.dashboard_welcome_message)
-            .setPositiveButton(R.string.dashboard_open_terminal, (dialog, which) ->
-                TerminalCommands.openTerminal(this))
-            .setNegativeButton(R.string.dashboard_later, null)
-            .show();
+        NuxDialog.show(this,
+            getString(R.string.dashboard_welcome_title),
+            getString(R.string.dashboard_welcome_message),
+            getString(R.string.dashboard_open_terminal),
+            () -> TerminalCommands.openTerminal(this),
+            getString(R.string.dashboard_later));
     }
 
     /** The desktop milestone (embed Xlorie, package XFCE) is not implemented yet. */
     private void showDesktopDialog() {
-        new android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.dashboard_desktop_title)
-            .setMessage(R.string.dashboard_desktop_message)
-            .setPositiveButton(R.string.dashboard_open_terminal, (dialog, which) ->
-                TerminalCommands.openTerminal(this))
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+        NuxDialog.show(this,
+            getString(R.string.dashboard_desktop_title),
+            getString(R.string.dashboard_desktop_message),
+            getString(R.string.dashboard_open_terminal),
+            () -> TerminalCommands.openTerminal(this),
+            getString(android.R.string.cancel));
     }
 }

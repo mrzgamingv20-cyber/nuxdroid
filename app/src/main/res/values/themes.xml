@@ -42,8 +42,9 @@
         <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
 
-        <!-- Dark dialogs so the first run and desktop notes do not flash white -->
-        <item name="android:alertDialogTheme" tools:targetApi="l">@style/ThemeOverlay.NuxDroid.Dialog</item>
+        <!-- Tab switch crossfade: the shell destinations are activities, so the
+             transition is set here instead of per startActivity call. -->
+        <item name="android:windowAnimationStyle">@style/Animation.NuxDroid.Tab</item>
     </style>
 
     <!-- TermuxApp Light DarkActionBar theme. -->
