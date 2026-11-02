@@ -29,7 +29,6 @@
     <string name="bootstrap_installer_title">Setting up &TERMUX_APP_NAME;</string>
     <string name="bootstrap_installer_body">Installing bootstrap packages…</string>
     <string name="bootstrap_installer_counting">Preparing bootstrap packages…</string>
-<string name="bootstrap_phase_preparing">Menyiapkan bootstrap…</string>
 
         <string name="bootstrap_installer_extracting">Extracting packages (%1$d/%2$d)…</string>
     <string name="bootstrap_phase_preparing">Menyiapkan bootstrap…</string>
