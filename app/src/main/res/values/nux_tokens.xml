@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NuxDroid shell tokens.
+
+  Editorial direction: the page is ink on a dark sheet. Hierarchy comes from
+  type size and spacing, not from stacked cards, borders and shadows. One
+  accent (white) and one hairline rule are the only chrome allowed.
+
+  Contrast on the page background (#08080A):
+    text        #F2F2F4  ~18:1
+    muted       #9B9CA3  ~6.7:1
+    on accent   #0A0A0B on #F2F2F4  ~18:1
+-->
+<resources>
+    <color name="nux_bg">#08080A</color>
+    <!-- Only raised surface in the shell: dialogs. Everything else is flat. -->
+    <color name="nux_surface">#141418</color>
+    <color name="nux_text">#F2F2F4</color>
+    <color name="nux_text_muted">#9B9CA3</color>
+    <color name="nux_accent">#F2F2F4</color>
+    <color name="nux_on_accent">#0A0A0B</color>
+    <color name="nux_ripple">#1FFFFFFF</color>
+    <color name="nux_hairline">#22222A</color>
+    <color name="nux_dot_active">#F2F2F4</color>
+    <color name="nux_dot_idle">#4A4B52</color>
+</resources>

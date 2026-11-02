@@ -1,14 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Preferences screen, wrapped by the shared bottom navigation bar. -->
+<!-- Pengaturan — same editorial header and flat navigation as the other tabs. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/nux_bg"
     android:orientation="vertical">
 
-    <include
-        layout="@layout/partial_primary_toolbar"
-        android:id="@+id/partial_primary_toolbar"/>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="24dp"
+        android:paddingTop="28dp"
+        android:paddingRight="24dp"
+        android:paddingBottom="20dp"
+        android:text="@string/nav_settings"
+        android:textColor="@color/nux_text"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/nux_hairline" />
 
     <FrameLayout
         android:id="@+id/settings"
@@ -16,12 +30,21 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/nux_hairline" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/dashboard_bottom_nav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
+        android:background="@color/nux_bg"
+        android:elevation="0dp"
+        app:itemIconSize="24dp"
+        app:itemIconTint="@color/nux_nav_item"
+        app:itemRippleColor="@color/nux_ripple"
+        app:itemTextColor="@color/nux_nav_item"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/menu_dashboard_nav" />
-
 </LinearLayout>

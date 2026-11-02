@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary action: white pill with a soft ripple (no layout shift on press). -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/nux_ripple">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/nux_accent" />
+            <corners android:radius="999dp" />
+        </shape>
+    </item>
+</ripple>

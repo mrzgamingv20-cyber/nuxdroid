@@ -1,8 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!--
      https://material.io/develop/android/theming/dark
     -->
+
+    <!--
+      NuxDroid shell theme (Beranda, Paket, Pengaturan).
+
+      The shell is always dark, even when the system is in light mode: the
+      surfaces, text and accent tokens are fixed in values/nux_tokens.xml, so
+      every Material attribute resolves to the same dark palette in both modes.
+      This keeps the shell monochrome and readable on OLED screens, and avoids
+      the loud dynamic primary blocks that the previous dashboard used.
+    -->
+    <style name="Theme.NuxDroid.Shell" parent="Theme.BaseActivity.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/nux_bg</item>
+        <item name="android:colorBackground">@color/nux_bg</item>
+
+        <!-- Surfaces -->
+        <item name="colorSurface">@color/nux_surface</item>
+        <item name="colorOnSurface">@color/nux_text</item>
+        <item name="colorOnBackground">@color/nux_text</item>
+
+        <!-- Monochrome accent: white pill, black content -->
+        <item name="colorPrimary">@color/nux_accent</item>
+        <item name="colorPrimaryVariant">@color/nux_accent</item>
+        <item name="colorOnPrimary">@color/nux_on_accent</item>
+        <item name="colorPrimaryDark">@color/nux_bg</item>
+        <item name="colorSecondary">@color/nux_text_muted</item>
+        <item name="colorSecondaryVariant">@color/nux_text_muted</item>
+        <item name="colorOnSecondary">@color/nux_bg</item>
+        <item name="colorAccent">@color/nux_text</item>
+
+        <!-- Text -->
+        <item name="android:textColorPrimary">@color/nux_text</item>
+        <item name="android:textColorSecondary">@color/nux_text_muted</item>
+
+        <!-- System chrome -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/nux_bg</item>
+        <item name="android:navigationBarColor" tools:targetApi="l">@color/nux_bg</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+
+        <!-- Dark dialogs so the first run and desktop notes do not flash white -->
+        <item name="android:alertDialogTheme" tools:targetApi="l">@style/ThemeOverlay.NuxDroid.Dialog</item>
+    </style>
 
     <!-- TermuxApp Light DarkActionBar theme. -->
     <style name="Theme.TermuxApp.Light.DarkActionBar" parent="Theme.BaseActivity.Light.DarkActionBar"/>

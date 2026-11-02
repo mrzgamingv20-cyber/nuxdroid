@@ -1,52 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Package list of the NuxDroid repository, with the shared bottom bar. -->
+<!-- Paket — flat list, hairline dividers, no cards. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/nux_bg"
     android:orientation="vertical">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingLeft="20dp"
-        android:paddingRight="20dp"
-        android:paddingTop="20dp"
-        android:text="@string/dashboard_packages_title"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="22sp"
-        android:textStyle="bold" />
+        android:orientation="vertical"
+        android:paddingLeft="24dp"
+        android:paddingTop="28dp"
+        android:paddingRight="24dp"
+        android:paddingBottom="12dp">
 
-    <TextView
-        android:id="@+id/packages_status"
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/dashboard_packages_title"
+            android:textColor="@color/nux_text"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/packages_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="3dp"
+            android:text="@string/packages_loading"
+            android:textColor="@color/nux_text_muted"
+            android:textIsSelectable="true"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/packages_retry"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:fontFamily="sans-serif-medium"
+            android:minWidth="0dp"
+            android:paddingLeft="0dp"
+            android:paddingRight="16dp"
+            android:stateListAnimator="@null"
+            android:text="@string/packages_retry"
+            android:textAllCaps="false"
+            android:textColor="@color/nux_text"
+            android:textSize="13sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <View
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:text="@string/packages_loading"
-        android:textIsSelectable="true"
-        android:textSize="14sp" />
-
-    <Button
-        android:id="@+id/packages_retry"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:text="@string/packages_retry"
-        android:visibility="gone" />
+        android:layout_height="1dp"
+        android:background="@color/nux_hairline" />
 
     <ListView
         android:id="@+id/packages_list"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:dividerHeight="1dp" />
+        android:divider="@color/nux_hairline"
+        android:dividerHeight="1dp"
+        android:scrollbars="none" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/nux_hairline" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/dashboard_bottom_nav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorSurface"
+        android:background="@color/nux_bg"
+        android:elevation="0dp"
+        app:itemIconSize="24dp"
+        app:itemIconTint="@color/nux_nav_item"
+        app:itemRippleColor="@color/nux_ripple"
+        app:itemTextColor="@color/nux_nav_item"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/menu_dashboard_nav" />
-
 </LinearLayout>

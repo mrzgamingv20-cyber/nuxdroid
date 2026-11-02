@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Platform alert dialog skinned to the shell tokens, so the first run and
+     desktop notes stay dark and monochrome instead of flashing white. -->
+<resources>
+    <style name="ThemeOverlay.NuxDroid.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">@color/nux_text</item>
+        <item name="android:colorBackground">@color/nux_surface</item>
+        <item name="android:textColorPrimary">@color/nux_text</item>
+        <item name="android:textColorSecondary">@color/nux_text_muted</item>
+    </style>
+</resources>

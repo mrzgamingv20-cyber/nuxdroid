@@ -14,7 +14,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.color.DynamicColors;
 import com.termux.R;
 import com.termux.shared.logger.Logger;
 
@@ -55,8 +54,6 @@ public class PackagesActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Same Material You palette as the dashboard (no-op before Android 12).
-        DynamicColors.applyToActivityIfAvailable(this);
         setContentView(R.layout.activity_packages);
 
         if (getSupportActionBar() != null) {

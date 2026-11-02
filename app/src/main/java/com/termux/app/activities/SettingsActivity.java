@@ -10,7 +10,6 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.color.DynamicColors;
 import com.termux.R;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.file.FileUtils;
@@ -35,7 +34,6 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
-        DynamicColors.applyToActivityIfAvailable(this);
 
         setContentView(R.layout.activity_settings);
         if (savedInstanceState == null) {
@@ -49,10 +47,6 @@ public class SettingsActivity extends AppCompatActivity {
         BottomNavigationView bottomNav = findViewById(R.id.dashboard_bottom_nav);
         DashboardNav.bind(this, bottomNav, R.id.nav_settings);
 
-        AppCompatActivityUtils.setToolbar(this, com.termux.shared.R.id.toolbar);
-        // Settings is a top level destination of the bottom bar, so it does not
-        // need a back arrow; the bar and the system back gesture lead out.
-        AppCompatActivityUtils.setShowBackButtonInActionBar(this, false);
     }
 
     @Override

@@ -244,11 +244,7 @@
 
     <!-- Dashboard (main tile menu) -->
     <string name="dashboard_tagline">Linux di HP kamu — lewat terminal asli</string>
-    <string name="dashboard_tile_terminal">Terminal</string>
     <string name="dashboard_tile_desktop">Desktop (XFCE)</string>
-    <string name="dashboard_tile_packages">Install Paket</string>
-    <string name="dashboard_tile_settings">Pengaturan</string>
-    <string name="dashboard_version_placeholder">NuxDroid</string>
     <string name="dashboard_version">NuxDroid v%1$s</string>
     <string name="dashboard_desktop_badge">Segera</string>
     <string name="dashboard_status_ready">Siap</string>
@@ -257,6 +253,10 @@
     <string name="dashboard_status_ready_desc">Prefix terpasang — Terminal siap dipakai.</string>
     <string name="dashboard_status_not_ready_desc">Prefix belum ada — buka Terminal untuk instalasi awal (sekitar 1–2 menit, sekali saja).</string>
     <string name="dashboard_quick_update">Perbarui Paket</string>
+    <string name="dashboard_prefix_installed">Terpasang</string>
+    <string name="dashboard_prefix_missing">Kosong</string>
+    <string name="dashboard_desktop_unavailable_desc">Paket XFCE dan Xlorie sedang disiapkan untuk rilis berikutnya.</string>
+    <string name="dashboard_meta_separator">·</string>
 
     <!-- Bottom navigation (shared shell) -->
     <string name="nav_home">Beranda</string>
