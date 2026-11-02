@@ -81,6 +81,7 @@
             android:label="@string/dashboard_packages_title"
             android:parentActivityName=".app.activities.DashboardActivity"
             android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar"
             tools:targetApi="n" />
 
         <activity

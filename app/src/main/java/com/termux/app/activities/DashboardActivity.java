@@ -8,6 +8,7 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.color.DynamicColors;
 import com.termux.R;
 import com.termux.shared.logger.Logger;
@@ -38,9 +39,27 @@ public class DashboardActivity extends AppCompatActivity {
         findViewById(R.id.dashboard_tile_settings).setOnClickListener(view ->
             startActivity(new Intent(this, SettingsActivity.class)));
 
+        // Quick actions of the status section.
+        findViewById(R.id.dashboard_quick_terminal).setOnClickListener(view ->
+            TerminalCommands.openTerminal(this));
+        findViewById(R.id.dashboard_quick_update).setOnClickListener(view ->
+            TerminalCommands.run(this, "apt-get update"));
+
+        // Shared bottom bar: mark Home as the current destination.
+        BottomNavigationView bottomNav = findViewById(R.id.dashboard_bottom_nav);
+        DashboardNav.bind(this, bottomNav, R.id.nav_home);
+
         showVersion();
         showStatus();
         maybeShowFirstRunHint();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // The prefix can be installed from the terminal while this screen stays
+        // in the back stack, so refresh the status card when coming back.
+        showStatus();
     }
 
     /**
@@ -69,12 +88,19 @@ public class DashboardActivity extends AppCompatActivity {
         }
     }
 
-    /** Reflect whether the Linux prefix is ready in the header status chip. */
+    /** Reflect whether the Linux prefix is ready in the status card. */
     private void showStatus() {
         TextView statusView = findViewById(R.id.dashboard_status);
         if (statusView == null) return;
         boolean ready = TerminalCommands.isReady();
         statusView.setText(ready ? R.string.dashboard_status_ready : R.string.dashboard_status_not_ready);
+
+        TextView descView = findViewById(R.id.dashboard_status_desc);
+        if (descView != null) {
+            descView.setText(ready
+                ? R.string.dashboard_status_ready_desc
+                : R.string.dashboard_status_not_ready_desc);
+        }
     }
 
     /** One time welcome note, shown only while Linux is not set up yet. */

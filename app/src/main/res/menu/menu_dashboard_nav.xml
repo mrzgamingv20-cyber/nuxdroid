@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared bottom navigation of the NuxDroid shell: the four top level
+     destinations. Icons are tinted by BottomNavigationView automatically. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@drawable/ic_dashboard_home"
+        android:title="@string/nav_home" />
+
+    <item
+        android:id="@+id/nav_terminal"
+        android:icon="@drawable/ic_dashboard_terminal"
+        android:title="@string/nav_terminal" />
+
+    <item
+        android:id="@+id/nav_packages"
+        android:icon="@drawable/ic_dashboard_packages"
+        android:title="@string/nav_packages" />
+
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_dashboard_settings"
+        android:title="@string/nav_settings" />
+
+</menu>

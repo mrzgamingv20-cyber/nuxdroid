@@ -251,8 +251,18 @@
     <string name="dashboard_version_placeholder">NuxDroid</string>
     <string name="dashboard_version">NuxDroid v%1$s</string>
     <string name="dashboard_desktop_badge">Segera</string>
-    <string name="dashboard_status_ready">Linux: siap</string>
-    <string name="dashboard_status_not_ready">Linux: belum siap</string>
+    <string name="dashboard_status_ready">Siap</string>
+    <string name="dashboard_status_not_ready">Belum siap</string>
+    <string name="dashboard_status_card_title">Status Linux</string>
+    <string name="dashboard_status_ready_desc">Prefix terpasang — Terminal siap dipakai.</string>
+    <string name="dashboard_status_not_ready_desc">Prefix belum ada — buka Terminal untuk instalasi awal (sekitar 1–2 menit, sekali saja).</string>
+    <string name="dashboard_quick_update">Perbarui Paket</string>
+
+    <!-- Bottom navigation (shared shell) -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_terminal">Terminal</string>
+    <string name="nav_packages">Paket</string>
+    <string name="nav_settings">Pengaturan</string>
     <string name="dashboard_desktop_title">Desktop belum tersedia</string>
     <string name="dashboard_desktop_message">Sesi XFCE dan X server (Xlorie) belum disertai di aplikasi ini.\n\nRencananya: Xlorie ditanam ke APK, lalu paket XFCE dibangun untuk repo NuxDroid.\n\nSementara itu kamu bisa membuka Terminal untuk bekerja lewat shell.</string>
     <string name="dashboard_packages_title">Install paket</string>
