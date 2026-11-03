@@ -35,6 +35,9 @@
     <string name="bootstrap_phase_extracting">Mengekstrak %1$d/%2$d file…</string>
     <string name="bootstrap_phase_finishing">Menyelesaikan…</string>
     <string name="bootstrap_error_note">Gagal menginstal bootstrap. Coba lagi atau hapus app.</string>
+    <string name="bootstrap_phase_xfce_installing">Menginstal XFCE…</string>
+    <string name="bootstrap_xfce_installed">XFCE sudah terinstal</string>
+    <string name="bootstrap_xfce_install_failed">Gagal menginstal XFCE. Buka Terminal dan jalankan: apt-get update && apt-get install -y xfce4</string>
     <string name="bootstrap_exit_title">Keluar NuxDroid</string>
     <string name="bootstrap_exit_message">Anda akan kembali ke layar utama tanpa fitur Linux. Lanjut?</string>
     <string name="bootstrap_exit_positive">Keluar</string>

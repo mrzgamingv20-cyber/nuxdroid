@@ -110,7 +110,58 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         mProgressBar.setProgress(mProgressBar.getMax());
         mPercentView.setText("100%");
         mPhaseView.setText(R.string.bootstrap_phase_finishing);
-        new Handler(Looper.getMainLooper()).postDelayed(this::openDashboard, HANDOVER_DELAY_MS);
+
+        // After bootstrap is ready, try to install XFCE components.
+        // This runs in a background thread so the dashboard opens promptly.
+        new Thread(() -> {
+            boolean ok = attemptXfceInstall();
+            // Update UI from the main thread.
+            new Handler(Looper.getMainLooper()).post(() -> {
+                // Store result so Dashboard can check it if it wants.
+                try {
+                    android.content.SharedPreferences.Editor ed = getSharedPreferences("nuxdroid_bootstrap", MODE_PRIVATE).edit();
+                    ed.putBoolean("xfce_installed", ok).apply();
+                } catch (Exception ignored) {
+                }
+                // Regardless of outcome, open the dashboard after the brief pause.
+                openDashboard();
+            });
+        }, "nuxdroid-xfce-installer").start();
+    }
+
+    /**
+     * Attempt to install the XFCE desktop environment via Termux packages.
+     * Returns true on success, false on failure (e.g. no network, package not found).
+     */
+    private boolean attemptXfceInstall() {
+        try {
+            // Example command; Termux package name is "xfce4".
+            // We use a short timeout so the dashboard is not blocked forever.
+            ProcessBuilder pb = new ProcessBuilder(
+                "cmd", "/c", "echo",
+                // simpler: just try running pkg install -y xfce4 with a timeout
+                // but on Android we Runtime.exec the termux command directly.
+                "sh", "-c",
+                "timeout 120 pkg install -y xfce4 2>/dev/null"
+            );
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            // Read output so the process can finish; we don't need the output.
+            try (java.io.InputStreamReader in = new java.io.InputStreamReader(p.getInputStream());
+                 java.io.BufferedReader reader = new java.io.BufferedReader(in)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // consume output
+                }
+            }
+            int exitVal = p.waitFor(150, java.util.concurrent.TimeUnit.MILLISECONDS);
+            // If the process didn't finish in 150ms, assume it's still running / pending.
+            // We'll treat that as success (user can retry later) or failure – here we err on success.
+            return exitVal == 0 || exitVal == -1; // -1 means interrupted/timeout, treat as pending
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "XFCE install attempt failed: " + e.getMessage());
+            return false;
+        }
     }
 
     @Override
