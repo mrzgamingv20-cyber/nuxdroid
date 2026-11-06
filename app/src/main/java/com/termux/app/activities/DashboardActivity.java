@@ -47,7 +47,7 @@ public class DashboardActivity extends AppCompatActivity {
             TerminalCommands.openTerminal(this));
         findViewById(R.id.dashboard_quick_update).setOnClickListener(view ->
             TerminalCommands.run(this, "apt-get update"));
-        setupMilestoneCard(R.id.dashboard_tile_desktop);
+        setupDesktopRow();
 
         // Emulator window controls.
         findViewById(R.id.emulator_btn_minimize).setOnClickListener(view ->
@@ -97,15 +97,14 @@ public class DashboardActivity extends AppCompatActivity {
     }
 
     /**
-     * Desktop milestone is a roadmap row: it only opens the honest note about
-     * what is planned (embed Xlorie, package XFCE for the repository).
+     * Desktop row: starts the embedded Lorie X server and opens its surface
+     * activity (window manager is installed on first run, see
+     * {@code DesktopInstallActivity}).
      */
-    private void setupMilestoneCard(int cardId) {
-        View card = findViewById(cardId);
-        if (card == null) return;
-        card.setOnClickListener(view -> showDesktopDialog());
-        TextView badge = findViewById(R.id.dashboard_tile_desktop_badge);
-        if (badge != null) badge.setVisibility(View.VISIBLE);
+    private void setupDesktopRow() {
+        View row = findViewById(R.id.dashboard_tile_desktop);
+        if (row == null) return;
+        row.setOnClickListener(view -> NuxXServer.openDesktop(this));
     }
 
     /** Show the installed versionName in the meta line, or "?" if unreadable. */
@@ -198,15 +197,5 @@ public class DashboardActivity extends AppCompatActivity {
             getString(R.string.dashboard_open_terminal),
             () -> TerminalCommands.openTerminal(this),
             getString(R.string.dashboard_later));
-    }
-
-    /** The desktop milestone (embed Xlorie, package XFCE) is not implemented yet. */
-    private void showDesktopDialog() {
-        NuxDialog.show(this,
-            getString(R.string.dashboard_desktop_title),
-            getString(R.string.dashboard_desktop_message),
-            getString(R.string.dashboard_open_terminal),
-            () -> TerminalCommands.openTerminal(this),
-            getString(android.R.string.cancel));
     }
 }

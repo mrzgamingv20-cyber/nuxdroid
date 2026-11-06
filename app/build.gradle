@@ -38,6 +38,8 @@ android {
 
         implementation project(":terminal-view")
         implementation project(":termux-shared")
+        // Embedded Lorie (Termux:X11) X server: native X server + renderer + surface activity.
+        implementation project(":termux-x11:lorie")
     }
 
     defaultConfig {

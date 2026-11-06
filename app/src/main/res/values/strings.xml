@@ -258,14 +258,14 @@
     <!-- Dashboard (main tile menu) -->
     <string name="dashboard_tagline">Linux on your phone, through a real terminal</string>
     <string name="dashboard_tile_desktop">XFCE desktop</string>
-    <string name="dashboard_desktop_badge">Roadmap</string>
+    <string name="dashboard_desktop_badge">Start</string>
     <string name="dashboard_status_ready">Ready</string>
     <string name="dashboard_status_not_ready">Not ready</string>
     <string name="dashboard_status_card_title">Linux status</string>
     <string name="dashboard_status_ready_desc">Prefix installed. The terminal is ready to use.</string>
     <string name="dashboard_status_not_ready_desc">No prefix yet. Open the terminal to run the first-time setup (about 1–2 minutes, once).</string>
     <string name="dashboard_quick_update">Update packages</string>
-    <string name="dashboard_desktop_unavailable_desc">The XFCE and Xlorie packages are being prepared for a later release.</string>
+    <string name="dashboard_desktop_unavailable_desc">Start the embedded X server and open the Linux desktop.</string>
     <string name="dashboard_meta_separator">·</string>
     <string name="emulator_minimize">Minimize</string>
     <string name="emulator_maximize">Maximize</string>
@@ -280,8 +280,6 @@
     <string name="nav_terminal">Terminal</string>
     <string name="nav_packages">Packages</string>
     <string name="nav_settings">Settings</string>
-    <string name="dashboard_desktop_title">Desktop not available yet</string>
-    <string name="dashboard_desktop_message">The XFCE session and the X server (Xlorie) are not bundled yet.\n\nPlan: embed Xlorie in the APK, then build the XFCE packages for the NuxDroid repository.\n\nMeanwhile you can open the terminal and work from the shell.</string>
     <string name="dashboard_packages_title">Install packages</string>
     <string name="dashboard_open_terminal">Open terminal</string>
     <string name="dashboard_later">Later</string>
