@@ -18,6 +18,17 @@ import com.termux.app.activities.DashboardActivity;
 import com.termux.app.activities.NuxDialog;
 import com.termux.shared.logger.Logger;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStreamReader;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import static com.termux.shared.termux.TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH;
+import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
+import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR_PATH;
+import static com.termux.shared.termux.TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH;
+
 /**
  * First-run screen of the NuxDroid shell: it unpacks the bundled Linux
  * bootstrap the way a game installs its additional data, then hands over to the
@@ -34,6 +45,9 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
 
     /** Lets the 100% state land before the dashboard takes over. */
     private static final long HANDOVER_DELAY_MS = 320L;
+
+    /** Lets the failure line be read before the dashboard takes over. */
+    private static final long RESULT_DELAY_MS = 2400L;
 
     private View mProgressGroup;
     private View mErrorGroup;
@@ -106,60 +120,76 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
     @Override
     public void onDone() {
         if (isFinishing() || isDestroyed()) return;
-        mInstalling = false;
-        mProgressBar.setProgress(mProgressBar.getMax());
+        mProgressBar.setIndeterminate(true);
         mPercentView.setText("100%");
-        mPhaseView.setText(R.string.bootstrap_phase_finishing);
+        mPhaseView.setText(R.string.bootstrap_phase_xfce_installing);
 
-        // After bootstrap is ready, try to install XFCE components.
-        // This runs in a background thread so the dashboard opens promptly.
+        // Install the desktop on a background thread: the screen stays alive
+        // with the "Installing XFCE…" phase, then hands over to the dashboard.
         new Thread(() -> {
             boolean ok = attemptXfceInstall();
-            // Update UI from the main thread.
             new Handler(Looper.getMainLooper()).post(() -> {
-                // Store result so Dashboard can check it if it wants.
+                mInstalling = false;
+                if (isFinishing() || isDestroyed()) return;
                 try {
-                    android.content.SharedPreferences.Editor ed = getSharedPreferences("nuxdroid_bootstrap", MODE_PRIVATE).edit();
-                    ed.putBoolean("xfce_installed", ok).apply();
+                    getSharedPreferences("nuxdroid_bootstrap", MODE_PRIVATE)
+                        .edit().putBoolean("xfce_installed", ok).apply();
                 } catch (Exception ignored) {
                 }
-                // Regardless of outcome, open the dashboard after the brief pause.
-                openDashboard();
+                mProgressBar.setIndeterminate(false);
+                mPhaseView.setText(ok
+                    ? R.string.bootstrap_xfce_installed
+                    : R.string.bootstrap_xfce_install_failed);
+                long delay = ok ? HANDOVER_DELAY_MS : RESULT_DELAY_MS;
+                new Handler(Looper.getMainLooper()).postDelayed(this::openDashboard, delay);
             });
         }, "nuxdroid-xfce-installer").start();
     }
 
     /**
-     * Attempt to install the XFCE desktop environment via Termux packages.
-     * Returns true on success, false on failure (e.g. no network, package not found).
+     * Install the XFCE desktop from the repository with the prefix's own bash
+     * and pkg, on the prefix environment. Bounded by an in-command timeout so
+     * a dead network can never hang the installer thread.
      */
     private boolean attemptXfceInstall() {
+        String bash = TERMUX_PREFIX_DIR_PATH + "/bin/bash";
+        String pkg = TERMUX_PREFIX_DIR_PATH + "/bin/pkg";
+        if (!new File(bash).exists() || !new File(pkg).exists()) {
+            Logger.logError(LOG_TAG, "XFCE install skipped: bash/pkg missing in prefix");
+            return false;
+        }
         try {
-            // Example command; Termux package name is "xfce4".
-            // We use a short timeout so the dashboard is not blocked forever.
-            ProcessBuilder pb = new ProcessBuilder(
-                "cmd", "/c", "echo",
-                // simpler: just try running pkg install -y xfce4 with a timeout
-                // but on Android we Runtime.exec the termux command directly.
-                "sh", "-c",
-                "timeout 120 pkg install -y xfce4 2>/dev/null"
-            );
+            ProcessBuilder pb = new ProcessBuilder(bash, "-c",
+                "timeout 300 pkg install -y xfce4");
+            Map<String, String> env = pb.environment();
+            env.put("PREFIX", TERMUX_PREFIX_DIR_PATH);
+            env.put("HOME", TERMUX_HOME_DIR_PATH);
+            env.put("TMPDIR", TERMUX_TMP_PREFIX_DIR_PATH);
+            env.put("PATH", TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+            env.remove("LD_PRELOAD");
             pb.redirectErrorStream(true);
-            Process p = pb.start();
-            // Read output so the process can finish; we don't need the output.
-            try (java.io.InputStreamReader in = new java.io.InputStreamReader(p.getInputStream());
-                 java.io.BufferedReader reader = new java.io.BufferedReader(in)) {
+            pb.directory(new File(TERMUX_HOME_DIR_PATH));
+
+            Process process = pb.start();
+            StringBuilder tail = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    // consume output
+                    if (tail.length() < 500) tail.append(line).append('\n');
                 }
             }
-            int exitVal = p.waitFor(150, java.util.concurrent.TimeUnit.MILLISECONDS);
-            // If the process didn't finish in 150ms, assume it's still running / pending.
-            // We'll treat that as success (user can retry later) or failure – here we err on success.
-            return exitVal == 0 || exitVal == -1; // -1 means interrupted/timeout, treat as pending
+            if (!process.waitFor(320, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                Logger.logError(LOG_TAG, "XFCE install timed out");
+                return false;
+            }
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                Logger.logError(LOG_TAG, "XFCE install exit " + exitCode + ": " + tail);
+            }
+            return exitCode == 0;
         } catch (Exception e) {
-            Logger.logError(LOG_TAG, "XFCE install attempt failed: " + e.getMessage());
+            Logger.logError(LOG_TAG, "XFCE install failed: " + e.getMessage());
             return false;
         }
     }

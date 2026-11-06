@@ -8,7 +8,7 @@
 
   Contrast on the page background (#08080A):
     text        #F2F2F4  ~18:1
-    muted       #9B9CA3  ~6.7:1
+    muted       #BFC1C8  ~10:1   (sunlight readable)
     on accent   #0A0A0B on #F2F2F4  ~18:1
 -->
 <resources>
@@ -16,11 +16,14 @@
     <!-- Only raised surface in the shell: dialogs. Everything else is flat. -->
     <color name="nux_surface">#141418</color>
     <color name="nux_text">#F2F2F4</color>
-    <color name="nux_text_muted">#9B9CA3</color>
+    <color name="nux_text_muted">#BFC1C8</color>
     <color name="nux_accent">#F2F2F4</color>
     <color name="nux_on_accent">#0A0A0B</color>
     <color name="nux_ripple">#1FFFFFFF</color>
     <color name="nux_hairline">#22222A</color>
-    <color name="nux_dot_active">#F2F2F4</color>
-    <color name="nux_dot_idle">#4A4B52</color>
+    <!-- Outline stroke for secondary (tonal) buttons: visible on #08080A. -->
+    <color name="nux_outline">#3A3B45</color>
+    <!-- Status dots: green = Linux ready, grey = not ready yet. -->
+    <color name="nux_dot_active">#3DDC84</color>
+    <color name="nux_dot_idle">#6E6F77</color>
 </resources>

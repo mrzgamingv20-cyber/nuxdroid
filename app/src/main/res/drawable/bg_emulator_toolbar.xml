@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bilah judul jendela emulator: solid gelap dengan sudut atas membulat. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/nux_bg" />
+    <corners android:topLeftRadius="12dp" android:topRightRadius="12dp" />
+</shape>

@@ -31,18 +31,18 @@
     <string name="bootstrap_installer_counting">Preparing bootstrap packages…</string>
 
         <string name="bootstrap_installer_extracting">Extracting packages (%1$d/%2$d)…</string>
-    <string name="bootstrap_phase_preparing">Menyiapkan bootstrap…</string>
-    <string name="bootstrap_phase_extracting">Mengekstrak %1$d/%2$d file…</string>
-    <string name="bootstrap_phase_finishing">Menyelesaikan…</string>
-    <string name="bootstrap_error_note">Gagal menginstal bootstrap. Coba lagi atau hapus app.</string>
-    <string name="bootstrap_phase_xfce_installing">Menginstal XFCE…</string>
-    <string name="bootstrap_xfce_installed">XFCE sudah terinstal</string>
-    <string name="bootstrap_xfce_install_failed">Gagal menginstal XFCE. Buka Terminal dan jalankan: apt-get update && apt-get install -y xfce4</string>
-    <string name="bootstrap_exit_title">Keluar NuxDroid</string>
-    <string name="bootstrap_exit_message">Anda akan kembali ke layar utama tanpa fitur Linux. Lanjut?</string>
-    <string name="bootstrap_exit_positive">Keluar</string>
-    <string name="bootstrap_exit_negative">Batal</string>
-    <string name="bootstrap_retry">Coba lagi</string>
+    <string name="bootstrap_phase_preparing">Preparing bootstrap…</string>
+    <string name="bootstrap_phase_extracting">Extracting %1$d/%2$d files…</string>
+    <string name="bootstrap_phase_finishing">Finishing…</string>
+    <string name="bootstrap_error_note">Could not install the bootstrap. Try again or reinstall the app.</string>
+    <string name="bootstrap_phase_xfce_installing">Installing XFCE…</string>
+    <string name="bootstrap_xfce_installed">XFCE installed</string>
+    <string name="bootstrap_xfce_install_failed">Could not install XFCE. Open Terminal and run: apt-get update &amp;&amp; apt-get install -y xfce4</string>
+    <string name="bootstrap_exit_title">Exit NuxDroid</string>
+    <string name="bootstrap_exit_message">You will go back to the home screen without Linux features. Continue?</string>
+    <string name="bootstrap_exit_positive">Exit</string>
+    <string name="bootstrap_exit_negative">Cancel</string>
+    <string name="bootstrap_retry">Try again</string>
     <string name="bootstrap_error_title">Unable to install bootstrap</string>
     <string name="bootstrap_error_body">&TERMUX_APP_NAME; was unable to install the bootstrap packages.</string>
     <string name="bootstrap_error_abort">Abort</string>
@@ -258,17 +258,22 @@
     <!-- Dashboard (main tile menu) -->
     <string name="dashboard_tagline">Linux on your phone, through a real terminal</string>
     <string name="dashboard_tile_desktop">XFCE desktop</string>
-    <string name="dashboard_desktop_badge">Soon</string>
+    <string name="dashboard_desktop_badge">Roadmap</string>
     <string name="dashboard_status_ready">Ready</string>
     <string name="dashboard_status_not_ready">Not ready</string>
     <string name="dashboard_status_card_title">Linux status</string>
     <string name="dashboard_status_ready_desc">Prefix installed. The terminal is ready to use.</string>
     <string name="dashboard_status_not_ready_desc">No prefix yet. Open the terminal to run the first-time setup (about 1–2 minutes, once).</string>
     <string name="dashboard_quick_update">Update packages</string>
-    <string name="dashboard_prefix_installed">Prefix installed</string>
-    <string name="dashboard_prefix_missing">No prefix</string>
     <string name="dashboard_desktop_unavailable_desc">The XFCE and Xlorie packages are being prepared for a later release.</string>
     <string name="dashboard_meta_separator">·</string>
+    <string name="emulator_minimize">Minimize</string>
+    <string name="emulator_maximize">Maximize</string>
+    <string name="emulator_close">Close</string>
+    <string name="dashboard_exit_title">Exit NuxDroid</string>
+    <string name="dashboard_exit_message">Close the app and end all terminal sessions?</string>
+    <string name="dashboard_exit_positive">Exit</string>
+    <string name="dashboard_storage_used">%1$s used</string>
 
     <!-- Bottom navigation (shared shell) -->
     <string name="nav_home">Home</string>
