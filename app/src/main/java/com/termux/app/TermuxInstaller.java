@@ -69,7 +69,7 @@ final class TermuxInstaller {
      * without. Both are guaranteed members of the bootstrap, so a miss means the
      * prefix is broken and must be reinstalled, not used.
      */
-    static boolean isPrefixBootable() {
+    public static boolean isPrefixBootable() {
         return new File(TERMUX_PREFIX_DIR_PATH, "bin/bash").exists()
             && new File(TERMUX_PREFIX_DIR_PATH, "bin/dpkg").exists();
     }

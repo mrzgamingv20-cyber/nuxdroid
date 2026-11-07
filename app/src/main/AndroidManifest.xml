@@ -75,6 +75,13 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- First-open desktop setup (Openbox); sits above the dashboard. -->
+        <activity
+            android:name=".app.activities.DesktopInstallActivity"
+            android:exported="false"
+            android:theme="@style/Theme.NuxDroid.Shell"
+            tools:targetApi="n" />
+
         <!-- Package list of the NuxDroid repository; installs through the terminal. -->
         <activity
             android:name=".app.activities.PackagesActivity"

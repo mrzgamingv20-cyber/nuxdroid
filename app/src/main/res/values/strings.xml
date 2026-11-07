@@ -299,4 +299,17 @@
     <string name="packages_install_confirm">Install %1$s version %2$s?\n\nIt runs in a new terminal session with: apt-get update &amp;&amp; apt-get install -y</string>
     <string name="packages_name_invalid">Invalid package name: %1$s</string>
 
+    <!-- First-run desktop setup screen (opens once on the first launch after install). -->
+    <string name="desktop_install_title">Setting up your desktop</string>
+    <string name="desktop_install_phase_update">Updating package index…</string>
+    <string name="desktop_install_phase_openbox">Installing the Openbox window manager…</string>
+    <string name="desktop_install_done">Desktop environment ready</string>
+    <string name="desktop_install_failed_note">Could not install Openbox right now. The package may not be available yet — install it later from Packages.</string>
+    <string name="desktop_install_retry">Retry</string>
+    <string name="desktop_install_later">Not now</string>
+    <string name="desktop_install_exit_title">Exit setup?</string>
+    <string name="desktop_install_exit_message">The desktop setup stops here. You can install Openbox later from Packages.</string>
+    <string name="desktop_install_exit_positive">Exit</string>
+    <string name="desktop_install_exit_negative">Cancel</string>
+
 </resources>

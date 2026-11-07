@@ -94,6 +94,9 @@ android {
             minifyEnabled true
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Signed with the stable testkey so Play Protect sees one
+            // consistent signer across builds (debug keys rotate per CI run).
+            signingConfig signingConfigs.debug
         }
 
         debug {

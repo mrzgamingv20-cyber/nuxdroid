@@ -1,5 +1,6 @@
 package com.termux.app.activities;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
@@ -48,6 +49,13 @@ public class DashboardActivity extends AppCompatActivity {
         findViewById(R.id.dashboard_quick_update).setOnClickListener(view ->
             TerminalCommands.run(this, "apt-get update"));
         setupDesktopRow();
+
+        // First-open desktop setup (installs Openbox once, see
+        // DesktopInstallActivity); sits on top of the dashboard so Back
+        // returns here.
+        if (DesktopInstallActivity.shouldInstall(this)) {
+            startActivity(new Intent(this, DesktopInstallActivity.class));
+        }
 
         // Emulator window controls.
         findViewById(R.id.emulator_btn_minimize).setOnClickListener(view ->

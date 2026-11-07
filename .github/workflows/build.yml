@@ -544,22 +544,25 @@ jobs:
       - name: Build APK
         env:
           TERMUX_APP_VERSION_NAME: 0.1.0
+          # One arm64-only release APK: the bootstrap prefix is aarch64, and
+          # a non-debuggable build is far less likely to trip Play Protect.
+          TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS: "1"
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - name: Package artifact
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/*arm64-v8a*.apk dist/nuxdroid-debug-arm64-v8a.apk
+          cp app/build/outputs/apk/release/*arm64-v8a*.apk dist/nuxdroid-release-arm64-v8a.apk
           cd dist
-          sha256sum nuxdroid-debug-arm64-v8a.apk > SHA256SUMS
+          sha256sum nuxdroid-release-arm64-v8a.apk > SHA256SUMS
           cat SHA256SUMS
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nuxdroid-debug-apk
+          name: nuxdroid-release-apk
           path: dist/*
           if-no-files-found: error
           retention-days: 7
