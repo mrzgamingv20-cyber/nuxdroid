@@ -49,18 +49,10 @@
         </activity>
         <meta-data android:name="android.allow_multiple_resumed_activities" android:value="true" />
 
-        <service android:name="com.termux.x11.utils.KeyInterceptor"
-            android:exported="true"
-            android:label="NuxDroid X KeyInterceptor"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
+        <!-- KeyInterceptor accessibility service removed: BIND_ACCESSIBILITY_SERVICE
+             is one of the sensitive permissions Play Protect hard-blocks on
+             sideloaded apps. Win/Meta interception stays off; plain keyboard and
+             mouse input are unaffected. -->
 
         <receiver android:name="com.termux.x11.LoriePreferences$Receiver" android:exported="true" tools:ignore="ExportedReceiver" android:enabled="true">
             <intent-filter>
