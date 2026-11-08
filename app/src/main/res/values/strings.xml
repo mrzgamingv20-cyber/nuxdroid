@@ -35,9 +35,6 @@
     <string name="bootstrap_phase_extracting">Extracting %1$d/%2$d files…</string>
     <string name="bootstrap_phase_finishing">Finishing…</string>
     <string name="bootstrap_error_note">Could not install the bootstrap. Try again or reinstall the app.</string>
-    <string name="bootstrap_phase_xfce_installing">Installing XFCE…</string>
-    <string name="bootstrap_xfce_installed">XFCE installed</string>
-    <string name="bootstrap_xfce_install_failed">Could not install XFCE. Open Terminal and run: apt-get update &amp;&amp; apt-get install -y xfce4</string>
     <string name="bootstrap_exit_title">Exit NuxDroid</string>
     <string name="bootstrap_exit_message">You will go back to the home screen without Linux features. Continue?</string>
     <string name="bootstrap_exit_positive">Exit</string>

@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.termux.R;
+import com.termux.app.BootstrapActivity;
+import com.termux.app.TermuxInstaller;
 import com.termux.shared.logger.Logger;
 
 import java.io.File;
@@ -40,6 +42,16 @@ public class DashboardActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // First open before the prefix exists: run the full-screen bootstrap
+        // and desktop setup animation (BootstrapActivity) instead of showing
+        // its progress popup over the dashboard.
+        if (!TermuxInstaller.isPrefixBootable()) {
+            startActivity(new Intent(this, BootstrapActivity.class));
+            finish();
+            return;
+        }
+
         setContentView(R.layout.activity_dashboard);
 
         // Terminal, Packages and Settings are reached from the bottom bar, so

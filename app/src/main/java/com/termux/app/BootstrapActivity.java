@@ -122,45 +122,68 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         if (isFinishing() || isDestroyed()) return;
         mProgressBar.setIndeterminate(true);
         mPercentView.setText("100%");
-        mPhaseView.setText(R.string.bootstrap_phase_xfce_installing);
+        mPhaseView.setText(R.string.desktop_install_phase_update);
 
         // Install the desktop on a background thread: the screen stays alive
-        // with the "Installing XFCE…" phase, then hands over to the dashboard.
+        // through "Updating package index…" and "Installing Openbox…", then
+        // hands over to the dashboard.
         new Thread(() -> {
-            boolean ok = attemptXfceInstall();
+            boolean ok = attemptOpenboxInstall();
             new Handler(Looper.getMainLooper()).post(() -> {
                 mInstalling = false;
                 if (isFinishing() || isDestroyed()) return;
-                try {
-                    getSharedPreferences("nuxdroid_bootstrap", MODE_PRIVATE)
-                        .edit().putBoolean("xfce_installed", ok).apply();
-                } catch (Exception ignored) {
+                // Same key DesktopInstallActivity checks: a success skips the
+                // dashboard's own setup screen; a failure lets it offer Retry.
+                if (ok) {
+                    try {
+                        getSharedPreferences("nuxdroid_bootstrap", MODE_PRIVATE)
+                            .edit().putBoolean("openbox_installed", true).apply();
+                    } catch (Exception ignored) {
+                    }
                 }
                 mProgressBar.setIndeterminate(false);
                 mPhaseView.setText(ok
-                    ? R.string.bootstrap_xfce_installed
-                    : R.string.bootstrap_xfce_install_failed);
+                    ? R.string.desktop_install_done
+                    : R.string.desktop_install_failed_note);
                 long delay = ok ? HANDOVER_DELAY_MS : RESULT_DELAY_MS;
                 new Handler(Looper.getMainLooper()).postDelayed(this::openDashboard, delay);
             });
-        }, "nuxdroid-xfce-installer").start();
+        }, "nuxdroid-openbox-installer").start();
+    }
+
+    /** Show a phase line on the UI thread from the installer thread. */
+    private void postPhase(int stringRes) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            mPhaseView.setText(stringRes);
+        });
     }
 
     /**
-     * Install the XFCE desktop from the repository with the prefix's own bash
-     * and pkg, on the prefix environment. Bounded by an in-command timeout so
-     * a dead network can never hang the installer thread.
+     * Install Openbox from nuxdroid-packages with the prefix's own bash and
+     * pkg, on the prefix environment: refresh the package index first, then
+     * install. Both steps are bounded by an in-command timeout so a dead
+     * network can never hang the installer thread.
      */
-    private boolean attemptXfceInstall() {
+    private boolean attemptOpenboxInstall() {
+        postPhase(R.string.desktop_install_phase_update);
+        if (!runPrefixCommand("timeout 120 apt-get update")) {
+            Logger.logError(LOG_TAG, "apt-get update failed before openbox install");
+            return false;
+        }
+        postPhase(R.string.desktop_install_phase_openbox);
+        return runPrefixCommand("timeout 300 pkg install -y openbox");
+    }
+
+    /** Run a shell command inside the prefix environment with a hard timeout. */
+    private boolean runPrefixCommand(String command) {
         String bash = TERMUX_PREFIX_DIR_PATH + "/bin/bash";
-        String pkg = TERMUX_PREFIX_DIR_PATH + "/bin/pkg";
-        if (!new File(bash).exists() || !new File(pkg).exists()) {
-            Logger.logError(LOG_TAG, "XFCE install skipped: bash/pkg missing in prefix");
+        if (!new File(bash).exists()) {
+            Logger.logError(LOG_TAG, "Prefix command skipped, bash missing: " + command);
             return false;
         }
         try {
-            ProcessBuilder pb = new ProcessBuilder(bash, "-c",
-                "timeout 300 pkg install -y xfce4");
+            ProcessBuilder pb = new ProcessBuilder(bash, "-c", command);
             Map<String, String> env = pb.environment();
             env.put("PREFIX", TERMUX_PREFIX_DIR_PATH);
             env.put("HOME", TERMUX_HOME_DIR_PATH);
@@ -180,16 +203,16 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
             }
             if (!process.waitFor(320, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
-                Logger.logError(LOG_TAG, "XFCE install timed out");
+                Logger.logError(LOG_TAG, "Prefix command timed out: " + command);
                 return false;
             }
             int exitCode = process.exitValue();
             if (exitCode != 0) {
-                Logger.logError(LOG_TAG, "XFCE install exit " + exitCode + ": " + tail);
+                Logger.logError(LOG_TAG, "Prefix command exit " + exitCode + ": " + command + "\n" + tail);
             }
             return exitCode == 0;
         } catch (Exception e) {
-            Logger.logError(LOG_TAG, "XFCE install failed: " + e.getMessage());
+            Logger.logError(LOG_TAG, "Prefix command failed: " + command + " - " + e.getMessage());
             return false;
         }
     }
