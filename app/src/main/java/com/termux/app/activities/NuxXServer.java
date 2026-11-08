@@ -45,6 +45,11 @@ public final class NuxXServer {
                 ENTRY_CLASS,
                 ":0");
             builder.environment().put("CLASSPATH", context.getApplicationInfo().sourceDir);
+            // Run the desktop session as soon as the server is ready: the
+            // script exports the prefix environment (PATH, LD_LIBRARY_PATH,
+            // fontconfig, gio/pixbuf caches) and execs openbox-session.
+            builder.environment().put("TERMUX_X11_XSTARTUP",
+                "/data/data/com.nuxdroid/files/usr/bin/nuxdroid-session");
             builder.environment().remove("LD_LIBRARY_PATH");
             builder.environment().remove("LD_PRELOAD");
             builder.redirectErrorStream(true);
