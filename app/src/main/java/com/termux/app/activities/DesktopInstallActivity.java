@@ -34,10 +34,11 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_TMP_PREFIX_DIR_PAT
  * phase bar and the phase line, then the hand-over to the dashboard.
  *
  * <p/>
- * It runs once per install ({@code openbox_attempted}) and installs Openbox
- * from the NuxDroid repository with the prefix's own bash/pkg. A success sets
- * {@code openbox_installed}; a failure stays recoverable from the Packages tab.
- * The trigger lives in {@link DashboardActivity}, not in the bootstrap phase.
+ * It appears until Openbox is installed ({@code openbox_installed}) and runs
+ * with the prefix's own bash/pkg. A failure stays recoverable: the screen
+ * returns on the next open unless the user dismissed it
+ * ({@code openbox_dismissed}). The trigger lives in {@link DashboardActivity},
+ * not in the bootstrap phase.
  */
 public class DesktopInstallActivity extends AppCompatActivity {
 
@@ -45,7 +46,12 @@ public class DesktopInstallActivity extends AppCompatActivity {
 
     private static final String PREFS = "nuxdroid_bootstrap";
     private static final String KEY_INSTALLED = "openbox_installed";
-    private static final String KEY_ATTEMPTED = "openbox_attempted";
+    /**
+     * Set only when the user actively leaves the setup screen (Later or Back).
+     * A failed attempt must NOT stick: the screen comes back on the next open
+     * so a transient network or repository error can recover on its own.
+     */
+    private static final String KEY_DISMISSED = "openbox_dismissed";
 
     /** Lets the "ready" line land before the dashboard takes over. */
     private static final long DONE_DELAY_MS = 1200L;
@@ -63,7 +69,7 @@ public class DesktopInstallActivity extends AppCompatActivity {
         try {
             SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             if (prefs.getBoolean(KEY_INSTALLED, false)
-                || prefs.getBoolean(KEY_ATTEMPTED, false)) {
+                || prefs.getBoolean(KEY_DISMISSED, false)) {
                 return false;
             }
         } catch (Exception e) {
@@ -86,7 +92,10 @@ public class DesktopInstallActivity extends AppCompatActivity {
         mProgressBar = findViewById(R.id.desktop_install_progress);
 
         findViewById(R.id.desktop_install_retry).setOnClickListener(view -> startInstall());
-        findViewById(R.id.desktop_install_later).setOnClickListener(view -> goDashboard());
+        findViewById(R.id.desktop_install_later).setOnClickListener(view -> {
+            markDismissed();
+            goDashboard();
+        });
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -96,9 +105,13 @@ public class DesktopInstallActivity extends AppCompatActivity {
                         getString(R.string.desktop_install_exit_title),
                         getString(R.string.desktop_install_exit_message),
                         getString(R.string.desktop_install_exit_positive),
-                        DesktopInstallActivity.this::finish,
+                        () -> {
+                            markDismissed();
+                            DesktopInstallActivity.this.finish();
+                        },
                         getString(R.string.desktop_install_exit_negative));
                 } else {
+                    markDismissed();
                     finish();
                 }
             }
@@ -110,13 +123,6 @@ public class DesktopInstallActivity extends AppCompatActivity {
     private void startInstall() {
         if (mInstalling) return;
         mInstalling = true;
-
-        // One attempt per install: the screen must not nag on every open.
-        try {
-            getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit().putBoolean(KEY_ATTEMPTED, true).apply();
-        } catch (Exception ignored) {
-        }
 
         mProgressGroup.setVisibility(View.VISIBLE);
         mErrorGroup.setVisibility(View.GONE);
@@ -201,6 +207,15 @@ public class DesktopInstallActivity extends AppCompatActivity {
         } catch (Exception e) {
             Logger.logError(LOG_TAG, "Desktop setup failed: " + e.getMessage());
             return false;
+        }
+    }
+
+    /** Remember that the user chose to skip setup; a failure never sets this. */
+    private void markDismissed() {
+        try {
+            getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit().putBoolean(KEY_DISMISSED, true).apply();
+        } catch (Exception ignored) {
         }
     }
 
