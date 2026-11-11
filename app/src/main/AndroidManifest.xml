@@ -71,16 +71,10 @@
         </activity>
 
         <!-- First-run bootstrap + desktop setup animation; shown before the
-             dashboard while the prefix is missing. -->
+             dashboard while the prefix is missing or the desktop is not
+             installed yet. -->
         <activity
             android:name=".app.BootstrapActivity"
-            android:exported="false"
-            android:theme="@style/Theme.NuxDroid.Shell"
-            tools:targetApi="n" />
-
-        <!-- First-open desktop setup (Openbox); sits above the dashboard. -->
-        <activity
-            android:name=".app.activities.DesktopInstallActivity"
             android:exported="false"
             android:theme="@style/Theme.NuxDroid.Shell"
             tools:targetApi="n" />

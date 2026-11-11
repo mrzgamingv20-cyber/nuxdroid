@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Bootstrap: only appears when the Linux prefix is missing or broken.
-     Shows an extract‐progress bar with percentages and phase text, then hands
-     over to the dashboard. -->
+<!-- Bootstrap: appears when the Linux prefix is missing or broken, and when the
+     prefix exists but the desktop (Openbox) is not installed yet. Shows the
+     extract progress with percentages, then the desktop install phases, then
+     hands over to the dashboard. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"

@@ -43,10 +43,16 @@ public class DashboardActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // First open before the prefix exists: run the full-screen bootstrap
-        // and desktop setup animation (BootstrapActivity) instead of showing
-        // its progress popup over the dashboard.
-        if (!TermuxInstaller.isPrefixBootable()) {
+        // First open: run the full-screen bootstrap animation
+        // (BootstrapActivity). It unpacks the prefix when it is missing and
+        // also installs the desktop when the prefix exists but Openbox is
+        // still missing. A failed attempt hands over with
+        // EXTRA_INSTALL_ATTEMPTED so this session does not bounce straight
+        // back; the next launch retries.
+        boolean installAttempted = getIntent()
+            .getBooleanExtra(BootstrapActivity.EXTRA_INSTALL_ATTEMPTED, false);
+        if (!TermuxInstaller.isPrefixBootable()
+            || (!installAttempted && BootstrapActivity.shouldInstall(this))) {
             startActivity(new Intent(this, BootstrapActivity.class));
             finish();
             return;
@@ -61,13 +67,6 @@ public class DashboardActivity extends AppCompatActivity {
         findViewById(R.id.dashboard_quick_update).setOnClickListener(view ->
             TerminalCommands.run(this, "apt-get update"));
         setupDesktopRow();
-
-        // First-open desktop setup (installs Openbox once, see
-        // DesktopInstallActivity); sits on top of the dashboard so Back
-        // returns here.
-        if (DesktopInstallActivity.shouldInstall(this)) {
-            startActivity(new Intent(this, DesktopInstallActivity.class));
-        }
 
         // Emulator window controls.
         findViewById(R.id.emulator_btn_minimize).setOnClickListener(view ->
@@ -119,7 +118,7 @@ public class DashboardActivity extends AppCompatActivity {
     /**
      * Desktop row: starts the embedded Lorie X server and opens its surface
      * activity (window manager is installed on first run, see
-     * {@code DesktopInstallActivity}).
+     * {@code BootstrapActivity}).
      */
     private void setupDesktopRow() {
         View row = findViewById(R.id.dashboard_tile_desktop);
