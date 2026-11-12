@@ -53,26 +53,34 @@
         android:id="@+id/bootstrap_error_group"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="0"
+        android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
         android:padding="24dp"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/bootstrap_error_message"
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:gravity="center"
-            android:textColor="@color/nux_text"
-            android:textSize="14sp" />
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/bootstrap_error_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="@color/nux_text"
+                android:textSize="13sp"
+                android:textIsSelectable="true" />
+        </ScrollView>
 
         <Button
             android:id="@+id/bootstrap_retry"
             style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:text="@string/bootstrap_retry"
             android:layout_gravity="center" />
 

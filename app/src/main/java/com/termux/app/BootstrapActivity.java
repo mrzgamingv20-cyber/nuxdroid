@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -19,10 +20,16 @@ import com.termux.R;
 import com.termux.app.activities.DashboardActivity;
 import com.termux.app.activities.NuxDialog;
 import com.termux.shared.logger.Logger;
+import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -76,6 +83,9 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
     private Button mRetryButton;
 
     private boolean mInstalling;
+
+    /** Output of the current install attempt, shown on screen when it fails. */
+    private final StringBuilder mAttemptLog = new StringBuilder();
 
     /** Whether the first-open desktop setup should run for this launch. */
     public static boolean shouldInstall(Context context) {
@@ -207,6 +217,8 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
     private void runDesktopInstall() {
         new Thread(() -> {
             boolean ok = attemptOpenboxInstall();
+            final String attemptLog = mAttemptLog.toString();
+            writeInstallLog((ok ? "OK" : "FAILED") + "\n" + attemptLog);
             new Handler(Looper.getMainLooper()).post(() -> {
                 mInstalling = false;
                 if (isFinishing() || isDestroyed()) return;
@@ -223,10 +235,42 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
                 } else {
                     mProgressGroup.setVisibility(View.GONE);
                     mErrorGroup.setVisibility(View.VISIBLE);
-                    mErrorMessageView.setText(R.string.desktop_install_failed_note);
+                    mErrorMessageView.setText(buildFailureMessage(attemptLog));
                 }
             });
         }, "nuxdroid-openbox-installer").start();
+    }
+
+    /**
+     * The failed note plus the tail of the real command output, so the cause
+     * is readable on the device instead of only in logcat.
+     */
+    private String buildFailureMessage(String attemptLog) {
+        String note = getString(R.string.desktop_install_failed_note);
+        String details = attemptLog == null ? "" : attemptLog.trim();
+        if (details.length() > 900) {
+            details = "…" + details.substring(details.length() - 900);
+        }
+        return details.length() == 0 ? note : note + "\n\n" + details;
+    }
+
+    /** Append the attempt to /sdcard/Download/NuxDroid/openbox-install.log. */
+    private void writeInstallLog(String body) {
+        File dir = new File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "NuxDroid");
+        try {
+            if (!dir.exists() && !dir.mkdirs()) return;
+            String stamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+                .format(new Date());
+            byte[] bytes = ("\n[" + stamp + "] " + body + "\n").getBytes("UTF-8");
+            try (FileOutputStream out = new FileOutputStream(
+                new File(dir, "openbox-install.log"), true)) {
+                out.write(bytes);
+            }
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Could not write install log: " + e.getMessage());
+        }
     }
 
     /** Show a phase line on the UI thread from the installer thread. */
@@ -244,6 +288,7 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
      * network can never hang the installer thread.
      */
     private boolean attemptOpenboxInstall() {
+        mAttemptLog.setLength(0);
         postPhase(R.string.desktop_install_phase_update);
         if (!runPrefixCommand("timeout 120 apt-get update")) {
             Logger.logError(LOG_TAG, "apt-get update failed before openbox install");
@@ -263,6 +308,17 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         try {
             ProcessBuilder pb = new ProcessBuilder(bash, "-c", command);
             Map<String, String> env = pb.environment();
+            // Start from the environment Termux itself gives its shells: apt
+            // and pkg read the TERMUX_* variables and the linker needs the
+            // prefix paths, so a bare PATH/PREFIX is not enough.
+            try {
+                HashMap<String, String> shellEnv = new TermuxShellEnvironment()
+                    .getEnvironment(this, true);
+                env.clear();
+                env.putAll(shellEnv);
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Could not build shell environment: " + e.getMessage());
+            }
             env.put("PREFIX", TERMUX_PREFIX_DIR_PATH);
             env.put("HOME", TERMUX_HOME_DIR_PATH);
             env.put("TMPDIR", TERMUX_TMP_PREFIX_DIR_PATH);
@@ -277,19 +333,26 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (tail.length() < 500) tail.append(line).append('\n');
+                    mAttemptLog.append(line).append('\n');
+                    if (mAttemptLog.length() > 6000) {
+                        mAttemptLog.delete(0, mAttemptLog.length() - 4000);
+                    }
                 }
             }
             if (!process.waitFor(320, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
+                mAttemptLog.append("[timed out] ").append(command).append('\n');
                 Logger.logError(LOG_TAG, "Prefix command timed out: " + command);
                 return false;
             }
             int exitCode = process.exitValue();
             if (exitCode != 0) {
+                mAttemptLog.append("[exit ").append(exitCode).append("] ").append(command).append('\n');
                 Logger.logError(LOG_TAG, "Prefix command exit " + exitCode + ": " + command + "\n" + tail);
             }
             return exitCode == 0;
         } catch (Exception e) {
+            mAttemptLog.append("[error] ").append(command).append(" - ").append(e.getMessage()).append('\n');
             Logger.logError(LOG_TAG, "Prefix command failed: " + command + " - " + e.getMessage());
             return false;
         }
@@ -300,12 +363,13 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         if (isFinishing() || isDestroyed()) return;
         mInstalling = false;
         Logger.logError(LOG_TAG, "Bootstrap install failed: " + errorMarkdown);
+        writeInstallLog("BOOTSTRAP FAILED\n" + (errorMarkdown == null ? "" : errorMarkdown));
 
         mProgressGroup.setVisibility(View.GONE);
         mErrorGroup.setVisibility(View.VISIBLE);
         String details = errorMarkdown == null ? "" : errorMarkdown.trim();
         // The full stack trace lives in the log; the screen names the cause.
-        if (details.length() > 400) details = details.substring(0, 400) + "…";
+        if (details.length() > 900) details = details.substring(0, 900) + "…";
         mErrorMessageView.setText(TextUtils.isEmpty(details)
             ? getString(R.string.bootstrap_error_note)
             : details);
