@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.termux.shared.termux.TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH;
+import static com.termux.shared.termux.TermuxConstants.TERMUX_FILES_DIR_PATH;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR_PATH;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH;
@@ -298,6 +299,18 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         return runPrefixCommand("timeout 300 pkg install -y openbox");
     }
 
+    /**
+     * The bootstrap archive ships the prefix only, so the home directory can
+     * be missing. A ProcessBuilder working directory that does not exist makes
+     * the process fail with "error=2, No such file or directory" before the
+     * command even runs.
+     */
+    private static File ensureHomeDirectory() {
+        File home = new File(TERMUX_HOME_DIR_PATH);
+        if (!home.exists()) home.mkdirs();
+        return home.exists() ? home : new File(TERMUX_FILES_DIR_PATH);
+    }
+
     /** Run a shell command inside the prefix environment with a hard timeout. */
     private boolean runPrefixCommand(String command) {
         String bash = TERMUX_PREFIX_DIR_PATH + "/bin/bash";
@@ -325,7 +338,7 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
             env.put("PATH", TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
             env.remove("LD_PRELOAD");
             pb.redirectErrorStream(true);
-            pb.directory(new File(TERMUX_HOME_DIR_PATH));
+            pb.directory(ensureHomeDirectory());
 
             Process process = pb.start();
             StringBuilder tail = new StringBuilder();

@@ -17,6 +17,8 @@ import com.termux.shared.termux.shell.TermuxShellManager;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.x11.LorieApp;
 
+import java.io.File;
+
 /**
  * NuxDroid application. Extends the embedded Termux:X11 {@link LorieApp} so the
  * X server's application logic (preferences, notification channel, binder
@@ -66,6 +68,15 @@ public class TermuxApplication extends LorieApp {
 
             // Setup termux-am-socket server
             TermuxAmSocketServer.setupTermuxAmSocketServer(context);
+
+            // The bootstrap archive ships the prefix only: the home directory
+            // has to exist before a shell, the terminal or the desktop
+            // installer runs with it as the working directory, otherwise the
+            // process fails to start with "error=2, No such file or directory".
+            File homeDir = new File(TermuxConstants.TERMUX_HOME_DIR_PATH);
+            if (!homeDir.exists() && !homeDir.mkdirs()) {
+                Logger.logError(LOG_TAG, "Create termux home directory failed: " + homeDir);
+            }
         } else {
             Logger.logErrorExtended(LOG_TAG, "Termux files directory is not accessible\n" + error);
         }
