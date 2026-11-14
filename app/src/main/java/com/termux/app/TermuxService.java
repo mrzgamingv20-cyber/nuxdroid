@@ -782,8 +782,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     private Notification buildNotification() {
         Resources res = getResources();
 
-        // Set pending intent to be launched when notification is clicked
-        Intent notificationIntent = TermuxActivity.newInstance(this);
+        // Set pending intent to be launched when notification is clicked.
+        // The shell has no terminal UI, so the notification leads home instead
+        // of back into the hidden terminal screen.
+        Intent notificationIntent = new Intent(this, com.termux.app.activities.DashboardActivity.class);
+        notificationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
 

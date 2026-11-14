@@ -79,15 +79,8 @@
             android:theme="@style/Theme.NuxDroid.Shell"
             tools:targetApi="n" />
 
-        <!-- Package list of the NuxDroid repository; installs through the terminal. -->
-        <activity
-            android:name=".app.activities.PackagesActivity"
-            android:label="@string/dashboard_packages_title"
-            android:parentActivityName=".app.activities.DashboardActivity"
-            android:resizeableActivity="true"
-            android:theme="@style/Theme.NuxDroid.Shell"
-            tools:targetApi="n" />
-
+        <!-- Legacy terminal UI, kept only so internal intents (sessions,
+             notifications) do not crash. It has no user-facing entry point. -->
         <activity
             android:name=".app.TermuxActivity"
             android:exported="true"
@@ -98,25 +91,11 @@
             android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
             tools:targetApi="n" />
 
-        <activity-alias
-            android:name=".HomeActivity"
-            android:exported="true"
-            android:targetActivity=".app.TermuxActivity">
-
-            <!-- Launch activity automatically on boot on Android Things devices -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.IOT_LAUNCHER" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity-alias>
-
         <activity
             android:name=".app.activities.HelpActivity"
             android:exported="false"
             android:label="@string/application_name"
-            android:parentActivityName=".app.TermuxActivity"
+            android:parentActivityName=".app.activities.DashboardActivity"
             android:resizeableActivity="true"
             tools:targetApi="n" />
 

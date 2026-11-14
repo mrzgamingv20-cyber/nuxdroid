@@ -12,10 +12,9 @@ import com.termux.R;
  * Wires the shared bottom navigation bar of the NuxDroid shell.
  *
  * <p/>
- * The four destinations are separate screens by design: Home, Packages and
- * Settings are activities that carry the same bar, while Terminal opens the
- * real {@code TermuxActivity} full screen (keyboard, extra keys and session
- * handling stay untouched). The bar therefore never fakes a tab: it just
+ * The shell has no terminal screen: the only Linux surface is the embedded X
+ * server, reached from the X Server destination. Home and Settings are separate
+ * activities that carry the same bar, so the bar never fakes a tab: it just
  * routes, and each screen marks itself as the selected item.
  */
 public final class DashboardNav {
@@ -46,10 +45,8 @@ public final class DashboardNav {
             }
             if (id == R.id.nav_home) {
                 open(activity, DashboardActivity.class);
-            } else if (id == R.id.nav_terminal) {
-                TerminalCommands.openTerminal(activity);
-            } else if (id == R.id.nav_packages) {
-                open(activity, PackagesActivity.class);
+            } else if (id == R.id.nav_xserver) {
+                NuxXServer.openDesktop(activity);
             } else if (id == R.id.nav_settings) {
                 open(activity, SettingsActivity.class);
             }

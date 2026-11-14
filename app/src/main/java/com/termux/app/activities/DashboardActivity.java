@@ -1,7 +1,6 @@
 package com.termux.app.activities;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,9 +29,6 @@ public class DashboardActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "DashboardActivity";
 
-    /** SharedPreferences flag: the first run note is shown at most once. */
-    private static final String PREF_FIRST_RUN_HINT = "first_run_hint_shown";
-
     /** Window frame margin of the emulator skin (dp). */
     private static final int FRAME_MARGIN_DP = 8;
 
@@ -60,12 +56,10 @@ public class DashboardActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_dashboard);
 
-        // Terminal, Packages and Settings are reached from the bottom bar, so
-        // the home screen only keeps the two status quick actions.
-        findViewById(R.id.dashboard_quick_terminal).setOnClickListener(view ->
-            TerminalCommands.openTerminal(this));
-        findViewById(R.id.dashboard_quick_update).setOnClickListener(view ->
-            TerminalCommands.run(this, "apt-get update"));
+        // Home keeps a single quick action: the X server. Settings stays on the
+        // bottom bar, and the shell has no terminal screen by design.
+        findViewById(R.id.dashboard_quick_xserver).setOnClickListener(view ->
+            NuxXServer.openDesktop(this));
         setupDesktopRow();
 
         // Emulator window controls.
@@ -83,14 +77,13 @@ public class DashboardActivity extends AppCompatActivity {
         showVersion();
         showStatus();
         showStorage();
-        maybeShowFirstRunHint();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // The prefix can be installed from the terminal while this screen stays
-        // in the back stack, so refresh the status card when coming back.
+        // The desktop setup can finish while this screen sits in the back
+        // stack, so refresh the status card when coming back.
         showStatus();
     }
 
@@ -141,7 +134,7 @@ public class DashboardActivity extends AppCompatActivity {
 
     /** Reflect whether the Linux prefix is ready in the status section. */
     private void showStatus() {
-        boolean ready = TerminalCommands.isReady();
+        boolean ready = TermuxInstaller.isPrefixBootable();
 
         TextView statusView = findViewById(R.id.dashboard_status);
         if (statusView != null) {
@@ -203,18 +196,5 @@ public class DashboardActivity extends AppCompatActivity {
         if (bytes >= 1_000_000_000L) return String.format(Locale.US, "%.1f GB", bytes / 1e9);
         if (bytes >= 1_000_000L) return String.format(Locale.US, "%.0f MB", bytes / 1e6);
         return Math.max(1, bytes / 1000) + " KB";
-    }
-
-    /** One time welcome note, shown only while Linux is not set up yet. */
-    private void maybeShowFirstRunHint() {
-        SharedPreferences prefs = getSharedPreferences("dashboard", MODE_PRIVATE);
-        if (prefs.getBoolean(PREF_FIRST_RUN_HINT, false) || TerminalCommands.isReady()) return;
-        prefs.edit().putBoolean(PREF_FIRST_RUN_HINT, true).apply();
-        NuxDialog.show(this,
-            getString(R.string.dashboard_welcome_title),
-            getString(R.string.dashboard_welcome_message),
-            getString(R.string.dashboard_open_terminal),
-            () -> TerminalCommands.openTerminal(this),
-            getString(R.string.dashboard_later));
     }
 }

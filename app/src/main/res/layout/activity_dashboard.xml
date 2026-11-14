@@ -175,9 +175,10 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <!-- Primary action: white pill, the visual focus -->
+                        <!-- Primary action: white pill, the visual focus. The app
+                             has no terminal UI; this is the only way in. -->
                         <Button
-                            android:id="@+id/dashboard_quick_terminal"
+                            android:id="@+id/dashboard_quick_xserver"
                             android:layout_width="wrap_content"
                             android:layout_height="48dp"
                             android:background="@drawable/bg_nux_button"
@@ -186,26 +187,9 @@
                             android:paddingStart="24dp"
                             android:paddingEnd="24dp"
                             android:stateListAnimator="@null"
-                            android:text="@string/dashboard_open_terminal"
+                            android:text="@string/dashboard_open_xserver"
                             android:textAllCaps="false"
                             android:textColor="@color/nux_on_accent"
-                            android:textSize="14sp" />
-
-                        <!-- Secondary action: outline button so it reads as a button -->
-                        <Button
-                            android:id="@+id/dashboard_quick_update"
-                            android:layout_width="wrap_content"
-                            android:layout_height="48dp"
-                            android:layout_marginStart="8dp"
-                            android:background="@drawable/bg_nux_button_tonal"
-                            android:fontFamily="sans-serif-medium"
-                            android:minWidth="0dp"
-                            android:paddingStart="20dp"
-                            android:paddingEnd="20dp"
-                            android:stateListAnimator="@null"
-                            android:text="@string/dashboard_quick_update"
-                            android:textAllCaps="false"
-                            android:textColor="@color/nux_text"
                             android:textSize="14sp" />
                     </LinearLayout>
                 </LinearLayout>

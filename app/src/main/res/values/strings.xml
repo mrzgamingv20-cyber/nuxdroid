@@ -253,60 +253,34 @@
 
 
     <!-- Dashboard (main tile menu) -->
-    <string name="dashboard_tagline">Linux on your phone, through a real terminal</string>
+    <string name="dashboard_tagline">Linux on your phone, on its own X server</string>
     <string name="dashboard_tile_desktop">XFCE desktop</string>
     <string name="dashboard_desktop_badge">Start</string>
     <string name="dashboard_status_ready">Ready</string>
     <string name="dashboard_status_not_ready">Not ready</string>
     <string name="dashboard_status_card_title">Linux status</string>
-    <string name="dashboard_status_ready_desc">Prefix installed. The terminal is ready to use.</string>
-    <string name="dashboard_status_not_ready_desc">No prefix yet. Open the terminal to run the first-time setup (about 1–2 minutes, once).</string>
-    <string name="dashboard_quick_update">Update packages</string>
+    <string name="dashboard_status_ready_desc">Prefix installed. The X server is ready to start.</string>
+    <string name="dashboard_status_not_ready_desc">No prefix yet. The first-time setup runs on its own when the app opens (about 1–2 minutes, once).</string>
     <string name="dashboard_desktop_unavailable_desc">Start the embedded X server and open the Linux desktop.</string>
     <string name="dashboard_meta_separator">·</string>
     <string name="emulator_minimize">Minimize</string>
     <string name="emulator_maximize">Maximize</string>
     <string name="emulator_close">Close</string>
     <string name="dashboard_exit_title">Exit NuxDroid</string>
-    <string name="dashboard_exit_message">Close the app and end all terminal sessions?</string>
+    <string name="dashboard_exit_message">Close the app and end the desktop session?</string>
     <string name="dashboard_exit_positive">Exit</string>
     <string name="dashboard_storage_used">%1$s used</string>
 
     <!-- Bottom navigation (shared shell) -->
     <string name="nav_home">Home</string>
-    <string name="nav_terminal">Terminal</string>
-    <string name="nav_packages">Packages</string>
+    <string name="nav_xserver">X Server</string>
     <string name="nav_settings">Settings</string>
-    <string name="dashboard_packages_title">Install packages</string>
-    <string name="dashboard_open_terminal">Open terminal</string>
-    <string name="dashboard_later">Later</string>
-    <string name="dashboard_welcome_title">Welcome to NuxDroid</string>
-    <string name="dashboard_welcome_message">First time here? Linux needs a one-time setup.\n\nIt runs when you open the terminal: about 1–2 minutes, once only.\n\nFrom this app you can open the terminal, install packages, and later launch the XFCE desktop.</string>
-    <string name="dashboard_terminal_not_ready">Linux is not set up yet. Opening the terminal for the first-time setup…</string>
-    <string name="dashboard_action_failed">Could not run the command: %1$s</string>
+    <string name="dashboard_open_xserver">Open X Server</string>
 
-
-    <!-- Package list -->
-    <string name="packages_loading">Loading the package list from nuxdroid-packages…</string>
-    <string name="packages_load_failed">Could not load the package list: %1$s</string>
-    <string name="packages_empty">No packages in the repository yet.</string>
-    <string name="packages_retry">Try again</string>
-    <string name="packages_install_action">Install</string>
-    <string name="packages_install_title">Install package</string>
-    <string name="packages_install_confirm">Install %1$s version %2$s?\n\nIt runs in a new terminal session with: apt-get update &amp;&amp; apt-get install -y</string>
-    <string name="packages_name_invalid">Invalid package name: %1$s</string>
-
-    <!-- First-run desktop setup screen (opens once on the first launch after install). -->
-    <string name="desktop_install_title">Setting up your desktop</string>
+    <!-- First-run desktop setup (runs inside the bootstrap animation). -->
     <string name="desktop_install_phase_update">Updating package index…</string>
     <string name="desktop_install_phase_openbox">Installing the Openbox window manager…</string>
     <string name="desktop_install_done">Desktop environment ready</string>
-    <string name="desktop_install_failed_note">Could not install Openbox right now. The package may not be available yet — install it later from Packages.</string>
-    <string name="desktop_install_retry">Retry</string>
-    <string name="desktop_install_later">Not now</string>
-    <string name="desktop_install_exit_title">Exit setup?</string>
-    <string name="desktop_install_exit_message">The desktop setup stops here. You can install Openbox later from Packages.</string>
-    <string name="desktop_install_exit_positive">Exit</string>
-    <string name="desktop_install_exit_negative">Cancel</string>
+    <string name="desktop_install_failed_note">Could not install Openbox right now. Check the connection and try again.</string>
 
 </resources>
