@@ -85,6 +85,15 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
     private static final String REPO_SOURCES =
         "deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main\n";
 
+    /**
+     * Options forced on every apt call: read one sources file and ignore the
+     * sources.list.d directory, so a stale mirror left behind by an old prefix
+     * can never be consulted again. Retries smooth over a flaky connection.
+     */
+    private static final String APT_OPTIONS =
+        "-o Dir::Etc::sourcelist=" + TERMUX_PREFIX_DIR_PATH + "/etc/apt/sources.list "
+            + "-o Dir::Etc::sourceparts=- -o Acquire::Retries=3";
+
     private View mProgressGroup;
     private View mErrorGroup;
     private TextView mPercentView;
@@ -103,7 +112,9 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         try {
             SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
             if (prefs.getBoolean(KEY_INSTALLED, false)) {
-                return false;
+                // Trust the flag only while the result is really on disk: a
+                // wiped or half-written prefix must run setup again.
+                return !new File(TERMUX_BIN_PREFIX_DIR_PATH, "openbox").exists();
             }
             if (prefs.getBoolean(KEY_DISMISSED, false)
                 && prefs.getLong(KEY_DISMISSED_AT, 0L) == installTime(context)) {
@@ -294,20 +305,33 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
 
     /**
      * Install Openbox from nuxdroid-packages with the prefix's own bash and
-     * pkg, on the prefix environment: refresh the package index first, then
+     * apt, on the prefix environment: refresh the package index first, then
      * install. Both steps are bounded by an in-command timeout so a dead
-     * network can never hang the installer thread.
+     * network can never hang the installer thread, and apt is pinned to the
+     * single rewritten sources file.
      */
     private boolean attemptOpenboxInstall() {
         mAttemptLog.setLength(0);
         ensureAptSources();
         postPhase(R.string.desktop_install_phase_update);
-        if (!runPrefixCommand("timeout 120 apt-get update")) {
+        if (!runPrefixCommand("timeout 180 apt-get " + APT_OPTIONS + " update")) {
             Logger.logError(LOG_TAG, "apt-get update failed before openbox install");
             return false;
         }
         postPhase(R.string.desktop_install_phase_openbox);
-        return runPrefixCommand("timeout 300 pkg install -y openbox");
+        if (!runPrefixCommand("timeout 300 apt-get " + APT_OPTIONS + " install -y openbox")) {
+            return false;
+        }
+        return verifyOpenboxInstalled();
+    }
+
+    /** apt can exit 0 with nothing installed, so check the real result. */
+    private boolean verifyOpenboxInstalled() {
+        File binary = new File(TERMUX_BIN_PREFIX_DIR_PATH, "openbox");
+        if (binary.exists()) return true;
+        mAttemptLog.append("[error] openbox binary is missing after apt\n");
+        Logger.logError(LOG_TAG, "openbox binary missing at " + binary.getAbsolutePath());
+        return false;
     }
 
     /**
@@ -326,7 +350,8 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
      * Point apt at the NuxDroid repository. A prefix unpacked by an older
      * build still lists the official Termux mirror, where openbox does not
      * exist (and whose binaries target the wrong data directory), so the
-     * sources file is rewritten whenever it does not name this repository.
+     * sources file is rewritten unless it already holds exactly this line.
+     * Extra files under sources.list.d are renamed out of the way as well.
      */
     private void ensureAptSources() {
         File dir = new File(TERMUX_PREFIX_DIR_PATH, "etc/apt");
@@ -335,23 +360,43 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
             if (!dir.exists() && !dir.mkdirs()) {
                 throw new IllegalStateException("cannot create " + dir);
             }
+            String current = "";
             if (sources.exists()) {
-                StringBuilder current = new StringBuilder();
+                StringBuilder builder = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(new FileInputStream(sources)))) {
                     String line;
-                    while ((line = reader.readLine()) != null) current.append(line).append('\n');
+                    while ((line = reader.readLine()) != null) builder.append(line).append('\n');
                 }
-                if (current.toString().contains("nuxdroid-packages")) return;
+                current = builder.toString();
             }
-            try (FileOutputStream out = new FileOutputStream(sources)) {
-                out.write(REPO_SOURCES.getBytes("UTF-8"));
+            if (current.trim().equals(REPO_SOURCES.trim())) {
+                Logger.logInfo(LOG_TAG, "apt sources already point at the NuxDroid repository");
+            } else {
+                try (FileOutputStream out = new FileOutputStream(sources)) {
+                    out.write(REPO_SOURCES.getBytes("UTF-8"));
+                }
+                Logger.logInfo(LOG_TAG, "Rewrote apt sources to the NuxDroid repository");
+                mAttemptLog.append("apt sources -> nuxdroid-packages\n");
             }
-            Logger.logInfo(LOG_TAG, "Rewrote apt sources to the NuxDroid repository");
-            mAttemptLog.append("apt sources -> nuxdroid-packages\n");
+            disableExtraSources(new File(dir, "sources.list.d"));
         } catch (Exception e) {
             Logger.logError(LOG_TAG, "Could not write apt sources: " + e.getMessage());
             mAttemptLog.append("[error] apt sources: ").append(e.getMessage()).append('\n');
+        }
+    }
+
+    /** Rename foreign source files so nothing but the rewritten file is read. */
+    private void disableExtraSources(File parts) {
+        File[] files = parts.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            String name = file.getName();
+            if (!name.endsWith(".list") && !name.endsWith(".sources")) continue;
+            if (file.renameTo(new File(parts, name + ".disabled"))) {
+                Logger.logInfo(LOG_TAG, "Disabled apt source " + name);
+                mAttemptLog.append("disabled apt source ").append(name).append('\n');
+            }
         }
     }
 
@@ -380,6 +425,9 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
             env.put("HOME", TERMUX_HOME_DIR_PATH);
             env.put("TMPDIR", TERMUX_TMP_PREFIX_DIR_PATH);
             env.put("PATH", TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+            // apt/dpkg must never wait on a prompt: nothing can answer one.
+            env.put("DEBIAN_FRONTEND", "noninteractive");
+            env.put("APT_LISTCHANGES_FRONTEND", "none");
             env.remove("LD_PRELOAD");
             pb.redirectErrorStream(true);
             pb.directory(ensureHomeDirectory());
