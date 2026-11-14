@@ -24,6 +24,7 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
@@ -74,6 +75,15 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
 
     /** Lets the "ready" state land before the dashboard takes over. */
     private static final long HANDOVER_DELAY_MS = 900L;
+
+    /**
+     * The only apt source: the desktop packages live here. The official
+     * Termux mirror ships binaries built for /data/data/com.termux, so it must
+     * never be used. Prefixes created by older builds still carry it, so the
+     * file is rewritten before apt runs.
+     */
+    private static final String REPO_SOURCES =
+        "deb [trusted=yes] https://mrzgamingv20-cyber.github.io/nuxdroid-packages aarch64 main\n";
 
     private View mProgressGroup;
     private View mErrorGroup;
@@ -290,6 +300,7 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
      */
     private boolean attemptOpenboxInstall() {
         mAttemptLog.setLength(0);
+        ensureAptSources();
         postPhase(R.string.desktop_install_phase_update);
         if (!runPrefixCommand("timeout 120 apt-get update")) {
             Logger.logError(LOG_TAG, "apt-get update failed before openbox install");
@@ -309,6 +320,39 @@ public class BootstrapActivity extends AppCompatActivity implements TermuxInstal
         File home = new File(TERMUX_HOME_DIR_PATH);
         if (!home.exists()) home.mkdirs();
         return home.exists() ? home : new File(TERMUX_FILES_DIR_PATH);
+    }
+
+    /**
+     * Point apt at the NuxDroid repository. A prefix unpacked by an older
+     * build still lists the official Termux mirror, where openbox does not
+     * exist (and whose binaries target the wrong data directory), so the
+     * sources file is rewritten whenever it does not name this repository.
+     */
+    private void ensureAptSources() {
+        File dir = new File(TERMUX_PREFIX_DIR_PATH, "etc/apt");
+        File sources = new File(dir, "sources.list");
+        try {
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IllegalStateException("cannot create " + dir);
+            }
+            if (sources.exists()) {
+                StringBuilder current = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(new FileInputStream(sources)))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) current.append(line).append('\n');
+                }
+                if (current.toString().contains("nuxdroid-packages")) return;
+            }
+            try (FileOutputStream out = new FileOutputStream(sources)) {
+                out.write(REPO_SOURCES.getBytes("UTF-8"));
+            }
+            Logger.logInfo(LOG_TAG, "Rewrote apt sources to the NuxDroid repository");
+            mAttemptLog.append("apt sources -> nuxdroid-packages\n");
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Could not write apt sources: " + e.getMessage());
+            mAttemptLog.append("[error] apt sources: ").append(e.getMessage()).append('\n');
+        }
     }
 
     /** Run a shell command inside the prefix environment with a hard timeout. */
